@@ -43,12 +43,18 @@ In Azure Portal → **Web App** `teams-genie-bot` → **Configuration** → **Ap
 | Name | Value | Notes |
 |------|--------|------|
 | `DATABRICKS_HOST` | `https://adb-2376768479807879.19.azuredatabricks.net` | No trailing slash |
-| `DATABRICKS_CLIENT_ID` | \<your SP client id\> | From step 2 |
-| `DATABRICKS_CLIENT_SECRET` | \<your SP client secret\> | From step 2 |
-| `APP_ID` | `5800c88d-33dd-4e88-9c61-9c32505a37f2` | If using bot **teams-genie** |
-| `APP_PASSWORD` | \<bot client secret from step 3\> | |
+| `DATABRICKS_CLIENT_ID` | \<your Databricks SP client id\> | Required for Genie (service principal) |
+| `DATABRICKS_CLIENT_SECRET` | \<your Databricks SP client secret\> | Required for Genie (service principal) |
+| `APP_ID` or `MICROSOFT_APP_ID` | Bot’s Microsoft App ID | See below |
+| `APP_PASSWORD` or `MICROSOFT_APP_PASSWORD` | Bot’s client secret | From the same app as APP_ID |
 
-**If you use the other bot** (`databricks-genie-teams`): set `APP_ID` to `c227e509-5774-44e1-b76b-12669d5914fc` and use that bot’s client secret for `APP_PASSWORD`.
+The app reads bot credentials from **either** `APP_ID`/`APP_PASSWORD` **or** `MICROSOFT_APP_ID`/`MICROSOFT_APP_PASSWORD` (Azure often uses the latter).
+
+**Which bot are you using?**
+- **teams-genie** (recommended): use `APP_ID` / `MICROSOFT_APP_ID` = `5800c88d-33dd-4e88-9c61-9c32505a37f2` and that app’s client secret.
+- **databricks-genie-teams**: use `APP_ID` / `MICROSOFT_APP_ID` = `c227e509-5774-44e1-b76b-12669d5914fc` and that app’s client secret.
+
+The Web App’s App ID and password **must** match the Bot whose “Messaging endpoint” points to this Web App. Genie spaces are read from `spaces.json` in the repo (not from `GENIE_SPACE_ID` env).
 
 **Startup command** (in **Configuration** → **General settings**):
 

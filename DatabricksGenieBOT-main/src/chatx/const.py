@@ -14,13 +14,15 @@ load_dotenv()
 DATABRICKS_HOST = os.getenv("DATABRICKS_HOST")
 DATABRICKS_CLIENT_ID = os.getenv("DATABRICKS_CLIENT_ID")
 DATABRICKS_CLIENT_SECRET = os.getenv("DATABRICKS_CLIENT_SECRET")
-APP_ID = os.getenv("APP_ID", "")
-APP_PASSWORD = os.getenv("APP_PASSWORD", "")
+# Azure Bot: support both naming conventions (Azure portal uses MICROSOFT_APP_*)
+APP_ID = os.getenv("APP_ID") or os.getenv("MICROSOFT_APP_ID", "")
+APP_PASSWORD = os.getenv("APP_PASSWORD") or os.getenv("MICROSOFT_APP_PASSWORD", "")
 OAUTH_CONNECTION_NAME = os.getenv("OAUTH_CONNECTION_NAME", "")
-WELCOME_MESSAGE = "Welcome to the Data Query Bot!"
+WELCOME_MESSAGE = "Welcome to the Data Query Bot! Type **login** to sign in and use Genie."
 WAITING_MESSAGE = "Querying Genie for results..."
+LOGIN_REQUIRED_MESSAGE = "Please type **login** to sign in and use Genie."
 SWITCHING_MESSAGE = "switch to @"
-AUTH_METHOD = "service_principal"  # or "oauth" for user sign-in
+AUTH_METHOD = os.getenv("AUTH_METHOD", "service_principal")  # or "oauth" for user sign-in (video flow)
 
 # Spaces mapping in json file
 __dir = Path(__file__).parent

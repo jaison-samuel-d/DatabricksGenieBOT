@@ -48,7 +48,8 @@ The code was tested in Azure Bot Framework that facilitates to integrate with an
 ### Configure your authentication mechanism
 
 1. Go to [`src/const.py`](./src/const.py) and update `AUTH_METHOD` to one of either `oauth` or `service_principal`.  
-   For **service principal** (no user sign-in), use `service_principal` and set `DATABRICKS_CLIENT_ID` and `DATABRICKS_CLIENT_SECRET` in your environment. See [Deploy to Teams with service principal](./docs/DEPLOY_TEAMS_SERVICE_PRINCIPAL.md).
+   - **Fast-track (match video: user signs in, identity in Genie):** use `oauth`, configure OAuth in Azure Bot, and follow [Fast-track: Genie + Teams](./docs/FASTTRACK_TEAMS_GENIE.md).  
+   - **Service principal (no user login):** use `service_principal` and set `DATABRICKS_CLIENT_ID` and `DATABRICKS_CLIENT_SECRET` in your environment. See [Deploy to Teams with service principal](./docs/DEPLOY_TEAMS_SERVICE_PRINCIPAL.md).
 
 ### Configure your Genie Spaces
 

@@ -11,6 +11,7 @@ from chatx.const import (
     SWITCHING_MESSAGE,
     REVERSE_SPACES,
     WELCOME_MESSAGE,
+    LOGIN_REQUIRED_MESSAGE,
     SPACES,
     DEFAULT_SPACE_ID,
     OAUTH_CONNECTION_NAME,
@@ -77,13 +78,13 @@ class MyBot(ActivityHandler):
 
         if self.genie_querier[user_id].auth_method is None:
             if self.auth_method == "oauth":
-                logger.warning(
-                    "Genie querier not initialized properly, user needs to authenticate"
-                )
+                # Match video UX: ask user to type "login" before showing OAuth card
+                if question.strip().lower() not in ("login", "sign in", "signin"):
+                    await turn_context.send_activity(LOGIN_REQUIRED_MESSAGE)
+                    return
+                logger.info("User requested login, triggering OAuth dialog")
                 await self._trigger_login_dialog(turn_context)
-                return await self._initialize_genie_querier_with_token(
-                    turn_context, user_id
-                )
+                return
             elif self.auth_method == "service_principal":
                 logger.warning(
                     "auth_method is service_principal, please ensure client_id and client_secret are provided"
