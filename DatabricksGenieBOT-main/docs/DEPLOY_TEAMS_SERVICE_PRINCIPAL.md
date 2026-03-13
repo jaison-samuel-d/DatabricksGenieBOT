@@ -59,8 +59,10 @@ The Web App’s App ID and password **must** match the Bot whose “Messaging en
 **Startup command** (in **Configuration** → **General settings**):
 
 ```bash
-gunicorn --bind 0.0.0.0 --worker-class aiohttp.worker.GunicornWebWorker --timeout 1200 --chdir src app:app
+gunicorn --bind 0.0.0.0:8000 --worker-class aiohttp.worker.GunicornWebWorker --timeout 1200 --chdir src app:app
 ```
+
+> Ensure this matches `WEBSITES_PORT` (8000).
 
 **Optional:** Set `SCM_DO_BUILD_DURING_DEPLOYMENT` to `true` so dependencies install on deploy.
 

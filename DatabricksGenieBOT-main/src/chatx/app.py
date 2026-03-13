@@ -30,7 +30,11 @@ from chatx.const import APP_ID, APP_PASSWORD, OAUTH_CONNECTION_NAME, AUTH_METHOD
 
 from chatx.login_dialog import LoginDialog
 
-# Log
+# Log - ensure INFO is visible in Azure (stdout)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
 logger = logging.getLogger(__name__)
 
 # Create MemoryStorage and state
@@ -46,15 +50,18 @@ BOT = MyBot(CONVERSATION_STATE, USER_STATE, DIALOG, auth_method=AUTH_METHOD)
 
 SETTINGS = BotFrameworkAdapterSettings(APP_ID, APP_PASSWORD)
 ADAPTER = BotFrameworkAdapter(SETTINGS)
+logger.info("Genie bot started. APP_ID configured: %s", "yes" if APP_ID else "NO")
 
 
 async def messages(req: web.Request) -> web.Response:
-    if "application/json" in req.headers["Content-Type"]:
-        body = await req.json()
-    else:
+    logger.info("POST /api/messages received")
+    content_type = req.headers.get("Content-Type", "")
+    if "application/json" not in content_type:
         return web.Response(status=415)
 
+    body = await req.json()
     activity = Activity().deserialize(body)
+    logger.info("Activity type=%s", getattr(activity, "type", "?"))
     auth_header = req.headers.get("Authorization", "")
 
     try:
@@ -71,7 +78,14 @@ async def messages(req: web.Request) -> web.Response:
         return web.Response(status=500)
 
 
+async def health(_req: web.Request) -> web.Response:
+    """Health check endpoint for Azure and reachability tests."""
+    return web.json_response({"status": "ok", "service": "genie-bot"})
+
+
 app = web.Application()
+app.router.add_get("/", health)
+app.router.add_get("/health", health)
 app.router.add_post("/api/messages", messages)
 
 if __name__ == "__main__":
