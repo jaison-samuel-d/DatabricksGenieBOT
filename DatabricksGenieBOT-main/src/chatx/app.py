@@ -26,7 +26,7 @@ from botbuilder.core import (
 from botbuilder.schema import Activity
 
 from chatx.bot import MyBot
-from chatx.const import APP_ID, APP_PASSWORD, OAUTH_CONNECTION_NAME, AUTH_METHOD
+from chatx.const import APP_ID, APP_PASSWORD, CHANNEL_AUTH_TENANT, OAUTH_CONNECTION_NAME, AUTH_METHOD
 
 from chatx.login_dialog import LoginDialog
 
@@ -48,7 +48,9 @@ DIALOG = LoginDialog(OAUTH_CONNECTION_NAME)
 # Create Bot
 BOT = MyBot(CONVERSATION_STATE, USER_STATE, DIALOG, auth_method=AUTH_METHOD)
 
-SETTINGS = BotFrameworkAdapterSettings(APP_ID, APP_PASSWORD)
+SETTINGS = BotFrameworkAdapterSettings(
+    APP_ID, APP_PASSWORD, channel_auth_tenant=CHANNEL_AUTH_TENANT or None
+)
 ADAPTER = BotFrameworkAdapter(SETTINGS)
 logger.info("Genie bot started. APP_ID configured: %s", "yes" if APP_ID else "NO")
 

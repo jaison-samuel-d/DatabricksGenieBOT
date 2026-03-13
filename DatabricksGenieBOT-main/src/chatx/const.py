@@ -17,6 +17,8 @@ DATABRICKS_CLIENT_SECRET = os.getenv("DATABRICKS_CLIENT_SECRET")
 # Azure Bot: support both naming conventions (Azure portal uses MICROSOFT_APP_*)
 APP_ID = os.getenv("APP_ID") or os.getenv("MICROSOFT_APP_ID", "")
 APP_PASSWORD = os.getenv("APP_PASSWORD") or os.getenv("MICROSOFT_APP_PASSWORD", "")
+# For single-tenant bots: use your tenant ID to avoid AADSTS700016 "not found in Bot Framework"
+CHANNEL_AUTH_TENANT = os.getenv("CHANNEL_AUTH_TENANT") or os.getenv("MICROSOFT_APP_TENANT_ID", "")
 OAUTH_CONNECTION_NAME = os.getenv("OAUTH_CONNECTION_NAME", "")
 WELCOME_MESSAGE = "Welcome to the Data Query Bot! Type **login** to sign in and use Genie."
 WAITING_MESSAGE = "Querying Genie for results..."
