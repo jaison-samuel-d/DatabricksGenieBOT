@@ -1,0 +1,24 @@
+[project]
+name = "databricks_genie_bot"
+version = "0.2.0"
+description = "Databricks Genie Teams Bot"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "aiohttp>=3.12.2",
+    "botbuilder-core>=4.16.2",
+    "databricks-sdk>=0.54.0",
+    "python-dotenv>=1.1.0",
+    "sqlparse>=0.5.3",
+    "botbuilder-dialogs"
+]
+
+[tool.uv]
+package = true
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.1",
+    "pytest-cov>=6.2.1",
+    "ruff>=0.11.11",
+]
