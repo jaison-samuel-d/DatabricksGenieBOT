@@ -1,3 +1,4 @@
+# Deploy-only workflow (no build job - Web App builds on deploy)
 name: Build and deploy Python app to Azure Web App - teams-genie-bot
 
 on:
@@ -6,9 +7,8 @@ on:
       - main
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
