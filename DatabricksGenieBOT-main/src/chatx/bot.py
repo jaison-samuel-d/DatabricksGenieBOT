@@ -86,9 +86,13 @@ class MyBot(ActivityHandler):
                 await self._trigger_login_dialog(turn_context)
                 return
             elif self.auth_method == "service_principal":
-                logger.warning(
-                    "auth_method is service_principal, please ensure client_id and client_secret are provided"
+                logger.error(
+                    "DATABRICKS_CLIENT_ID or DATABRICKS_CLIENT_SECRET missing in App settings"
                 )
+                await turn_context.send_activity(
+                    "Bot misconfigured: Databricks credentials (DATABRICKS_CLIENT_ID, DATABRICKS_CLIENT_SECRET) are required. Please contact the administrator."
+                )
+                return
 
         elif self.genie_querier[user_id].auth_method == "service_principal":
             if self.auth_method == "oauth":
@@ -151,7 +155,6 @@ class MyBot(ActivityHandler):
                     wait_activity.id
                 )  # Use the same ID to update the waiting message
                 return await turn_context.update_activity(response_activity)
-                # return await turn_context.send_activity(response_activity)
 
             except json.JSONDecodeError:
                 await turn_context.send_activity(
@@ -159,13 +162,15 @@ class MyBot(ActivityHandler):
                 )
             except Exception as e:
                 if "This channel does not support this operation" in str(e):
-                    return await turn_context.send_activity(response_activity)
-
-                else:
-                    logger.error(f"Error processing message: {str(e)}")
-                    return await turn_context.send_activity(
-                        "An error occurred while processing your request."
-                    )
+                    try:
+                        resp = genie_result.process_query_results()
+                        return await turn_context.send_activity(resp)
+                    except (NameError, AttributeError):
+                        pass
+                logger.error(f"Error processing message: {str(e)}")
+                return await turn_context.send_activity(
+                    "An error occurred while processing your request."
+                )
 
     async def on_members_added_activity(
         self, members_added: list[ChannelAccount], turn_context: TurnContext
