@@ -79,12 +79,12 @@ class AdaptiveCardFactory:
         """
         body: list[dict] = []
 
-        # 1. Genie answer (summary before table) - like Genie UI
+        # 1. Summary (always first, like Genie) - before table
         if genie_answer:
             body.extend([
                 {
                     "type": "TextBlock",
-                    "text": "Answer",
+                    "text": "Summary",
                     "wrap": True,
                     "size": "Large",
                     "weight": "Bolder",
@@ -158,36 +158,40 @@ class AdaptiveCardFactory:
                     ],
                 })
 
-        # SQL inline (ShowCard/CodeBlock unreliable in Teams)
+        # SQL collapsible (ShowCard with TextBlock - more reliable than CodeBlock in Teams)
         formatted_sql = sqlparse.format(query, reindent=True, keyword_case="upper")
-        body.append({"type": "TextBlock", "text": "", "separator": True})
-        body.append({
-            "type": "TextBlock",
-            "text": "SQL Query",
-            "wrap": True,
-            "size": "Medium",
-            "weight": "Bolder",
-        })
-        body.append({
-            "type": "TextBlock",
-            "text": formatted_sql,
-            "wrap": True,
-            "size": "Small",
-        })
+
+        actions: list[dict] = [
+            {
+                "type": "Action.ShowCard",
+                "title": "Show SQL query",
+                "card": {
+                    "type": "AdaptiveCard",
+                    "version": "1.2",
+                    "body": [
+                        {
+                            "type": "TextBlock",
+                            "text": formatted_sql,
+                            "wrap": True,
+                            "size": "Small",
+                        }
+                    ],
+                },
+            },
+        ]
+        if chart_url:
+            actions.append({
+                "type": "Action.OpenUrl",
+                "title": "View chart in browser",
+                "url": chart_url,
+            })
 
         card_payload: dict = {
             "type": "AdaptiveCard",
             "version": "1.5",
             "body": body,
+            "actions": actions,
         }
-        if chart_url:
-            card_payload["actions"] = [
-                {
-                    "type": "Action.OpenUrl",
-                    "title": "View chart in browser",
-                    "url": chart_url,
-                }
-            ]
 
         attachment = CardFactory.adaptive_card(card_payload)
 

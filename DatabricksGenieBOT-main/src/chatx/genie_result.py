@@ -112,8 +112,11 @@ class GenieResult:
                     if self.query_description:
                         chart_insights = f"{self.query_description}\n\n{chart_insights}"
 
+                # Summary before table (Genie-style) - always show
+                summary = (genie_answer or self.query_description or "Here are the results for your query.").strip()
+
                 return AdaptiveCardFactory.get_table_card(
-                    genie_answer=genie_answer,
+                    genie_answer=summary,
                     response=response,
                     col_output=col_output,
                     row_output=row_output,

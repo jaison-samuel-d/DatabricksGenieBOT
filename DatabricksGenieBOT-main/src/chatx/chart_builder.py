@@ -91,40 +91,37 @@ def build_chart_data(
     elif "share" in q or "composition" in q or "breakdown" in q or "pie" in q:
         default_type = "pie"
 
-    # Find first string/category col and first numeric col
-    label_idx = -1
+    # Find dimension cols (string/category) and value col (numeric)
+    dim_idxs: list[int] = []
     value_idx = -1
     for i, col in enumerate(columns):
         if _is_numeric_type(col.type_name):
             if value_idx < 0:
                 value_idx = i
         else:
-            if label_idx < 0:
-                label_idx = i
+            dim_idxs.append(i)
 
-    # Need at least one of each, or two numerics (use first as label if few rows)
-    if label_idx >= 0 and value_idx >= 0 and label_idx != value_idx:
-        pass
-    elif value_idx >= 0 and len(columns) >= 2:
-        # Try: first col as label, second as value
-        if _is_numeric_type(columns[0].type_name) and _is_numeric_type(columns[1].type_name):
-            label_idx = 0
-            value_idx = 1
-        elif not _is_numeric_type(columns[0].type_name) and _is_numeric_type(columns[1].type_name):
-            label_idx = 0
+    # Need at least one dimension and one numeric
+    if not dim_idxs or value_idx < 0:
+        if value_idx >= 0 and len(columns) >= 2 and not _is_numeric_type(columns[0].type_name):
+            dim_idxs = [0]
             value_idx = 1
         else:
             return None
-    else:
-        return None
 
+    # Use most granular dimension: last dim col, or combine if multiple (e.g. region + channel)
     labels: list[str] = []
     values: list[float] = []
     for row in data_array:
         v = _parse_value(row[value_idx], columns[value_idx])
         if v is not None:
-            labels.append(str(row[label_idx]) if row[label_idx] is not None else "")
-            values.append(v)
+            parts = [
+                str(row[i]) if row[i] is not None else ""
+                for i in dim_idxs
+            ]
+            label = " – ".join(p for p in parts if p) or "—"
+            labels.append(label)
+            values.append(round(v, 2))  # Round to 2 decimals for cleaner chart
 
     if not labels or not values:
         return None
@@ -135,11 +132,12 @@ def build_chart_data(
         labels = labels[:max_points]
         values = values[:max_points]
 
+    label_col = " – ".join(columns[i].name for i in dim_idxs)
     return ChartData(
         labels=labels,
         values=values,
         chart_type=default_type,
-        label_col=columns[label_idx].name,
+        label_col=label_col,
         value_col=columns[value_idx].name,
     )
 
@@ -223,12 +221,15 @@ def get_chart_url(chart_data: ChartData) -> str:
                         "anchor": "end",
                         "align": "top",
                         "color": "#333",
-                        "font": {"size": 11, "weight": "bold"},
+                        "font": {"size": 10, "weight": "bold"},
                     },
                 },
                 "scales": {
                     "y": {"beginAtZero": True, "grid": {"color": "#e0e0e0"}},
-                    "x": {"grid": {"display": False}},
+                    "x": {
+                        "grid": {"display": False},
+                        "ticks": {"maxRotation": 45, "minRotation": 0},
+                    },
                 },
             },
         }
