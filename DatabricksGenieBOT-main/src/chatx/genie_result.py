@@ -6,6 +6,7 @@ from databricks.sdk.service.dashboards import GenieResultMetadata
 from botbuilder.schema import Activity, ActivityTypes
 
 from chatx.adaptive_card import AdaptiveCardFactory
+from chatx.chart_builder import build_chart_data, get_chart_url
 
 # Log
 logger = logging.getLogger(__name__)
@@ -20,6 +21,8 @@ class GenieResult:
     statement_response: StatementResponse | None = None
     message: str | None = None
     conversation_id: str | None = None
+    genie_answer: str | None = None  # Genie's summary/answer (shown before table)
+    question: str | None = None  # User question (for chart type hint)
 
     def process_query_results(self) -> Activity:
         """
@@ -36,10 +39,8 @@ class GenieResult:
         :raises: Logs errors if required fields (e.g., result or data_array) are missing
                 in the GenieResult object.
         """
+        genie_answer = (self.genie_answer or "").strip()
         response = ""
-
-        if self.query_description:
-            response += f"{self.query_description}\n\n"
 
         if self.query_result_metadata:
             metadata = self.query_result_metadata
@@ -97,8 +98,30 @@ class GenieResult:
                             AdaptiveCardFactory.get_cell(formatted_value)
                         )
                     row_output.append({"type": "TableRow", "cells": cell_output})
+
+                chart_url = None
+                chart_insights = None
+                chart_data = build_chart_data(
+                    columns,
+                    data_array,
+                    question_hint=self.question or "",
+                )
+                if chart_data:
+                    chart_url = get_chart_url(chart_data)
+                    chart_insights = (
+                        self.query_description
+                        or f"Key insight: {chart_data.value_col} by {chart_data.label_col}. "
+                        f"Top value: {chart_data.labels[0]} ({chart_data.values[0]:,.2f})"
+                    )
+
                 return AdaptiveCardFactory.get_table_card(
-                    response, col_output, row_output, self.query or "No query provided"
+                    genie_answer=genie_answer,
+                    response=response,
+                    col_output=col_output,
+                    row_output=row_output,
+                    query=self.query or "No query provided",
+                    chart_url=chart_url,
+                    chart_insights=chart_insights,
                 )
             else:
                 logger.error(

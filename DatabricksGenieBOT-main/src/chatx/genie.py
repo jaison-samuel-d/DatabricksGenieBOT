@@ -82,10 +82,13 @@ class GenieQuerier:
             )
             logger.info(f"Raw message content: {message_content}")
 
+            genie_answer = message_content.content or ""
+
             if not message_content.attachments:
                 return GenieResult(
                     message=message_content.content,
                     conversation_id=conversation_id,
+                    genie_answer=genie_answer,
                 )
 
             for attachment in message_content.attachments:
@@ -94,8 +97,12 @@ class GenieQuerier:
 
                 if not attachment_id or not query_obj:
                     text_obj = attachment.text
-                    message = text_obj.content if text_obj else ""
-                    return GenieResult(message=message, conversation_id=conversation_id)
+                    message = text_obj.content if text_obj else genie_answer or ""
+                    return GenieResult(
+                        message=message,
+                        conversation_id=conversation_id,
+                        genie_answer=genie_answer or message,
+                    )
 
                 # Use the new endpoint to get query results
                 query_result = await loop.run_in_executor(
@@ -116,6 +123,8 @@ class GenieQuerier:
                     statement_id=query_obj.statement_id,
                     conversation_id=conversation_id,
                     statement_response=query_result.statement_response,
+                    genie_answer=genie_answer,
+                    question=question,
                 )
 
                 if not response_data.statement_response:

@@ -20,7 +20,11 @@ APP_PASSWORD = os.getenv("APP_PASSWORD") or os.getenv("MICROSOFT_APP_PASSWORD", 
 # For single-tenant bots: use your tenant ID to avoid AADSTS700016 "not found in Bot Framework"
 CHANNEL_AUTH_TENANT = os.getenv("CHANNEL_AUTH_TENANT") or os.getenv("MICROSOFT_APP_TENANT_ID", "")
 OAUTH_CONNECTION_NAME = os.getenv("OAUTH_CONNECTION_NAME", "")
-WELCOME_MESSAGE = "Welcome to the Data Query Bot! Type **login** to sign in and use Genie."
+WELCOME_MESSAGE = (
+    "Welcome to Marketing Analytics Genie! I'm your Professional Marketing Analyst. "
+    "Ask me about ROI, spend optimization, attribution, or trends. "
+    "Type your question below to get started."
+)
 WAITING_MESSAGE = "Querying Genie for results..."
 LOGIN_REQUIRED_MESSAGE = "Please type **login** to sign in and use Genie."
 SWITCHING_MESSAGE = "switch to @"
@@ -38,3 +42,11 @@ LIST_SPACES = ", ".join([f"@{space_name}" for space_name in SPACES.keys()])
 SPACE_NOT_FOUND = (
     f"Genie space not found. Please use {LIST_SPACES} to specify the space."
 )
+
+# Recommendation questions shown on welcome and after each answer (edit to match your data)
+RECOMMENDATION_QUESTIONS = [
+    "Give me Facebook ROI",
+    "Show ROI by region and quarter",
+    "What are the top performing channels?",
+    "Compare bookings across regions",
+]

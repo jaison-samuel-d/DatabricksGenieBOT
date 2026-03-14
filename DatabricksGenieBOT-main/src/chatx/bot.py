@@ -127,6 +127,9 @@ class MyBot(ActivityHandler):
             await turn_context.send_activity(
                 f"Switched to space: {REVERSE_SPACES[space_id]}"
             )
+            await turn_context.send_activity(
+                AdaptiveCardFactory.get_recommendation_activity()
+            )
         else:
             if not space_id or "@" in question.lower():
                 new_space_id = get_space_id(question)
@@ -154,23 +157,38 @@ class MyBot(ActivityHandler):
                 response_activity.id = (
                     wait_activity.id
                 )  # Use the same ID to update the waiting message
-                return await turn_context.update_activity(response_activity)
+                await turn_context.update_activity(response_activity)
+                await turn_context.send_activity(
+                    AdaptiveCardFactory.get_recommendation_activity("Ask another question or pick one below:")
+                )
+                return
 
             except json.JSONDecodeError:
                 await turn_context.send_activity(
                     "Failed to decode response from the server."
                 )
+                await turn_context.send_activity(
+                    AdaptiveCardFactory.get_recommendation_activity()
+                )
             except Exception as e:
                 if "This channel does not support this operation" in str(e):
                     try:
                         resp = genie_result.process_query_results()
-                        return await turn_context.send_activity(resp)
+                        await turn_context.send_activity(resp)
+                        await turn_context.send_activity(
+                            AdaptiveCardFactory.get_recommendation_activity()
+                        )
+                        return
                     except (NameError, AttributeError):
                         pass
                 logger.error(f"Error processing message: {str(e)}")
-                return await turn_context.send_activity(
+                await turn_context.send_activity(
                     "An error occurred while processing your request."
                 )
+                await turn_context.send_activity(
+                    AdaptiveCardFactory.get_recommendation_activity()
+                )
+                return
 
     async def on_members_added_activity(
         self, members_added: list[ChannelAccount], turn_context: TurnContext
@@ -182,6 +200,9 @@ class MyBot(ActivityHandler):
                 )
                 self.genie_querier[member.id] = GenieQuerier()
                 await turn_context.send_activity(f"v0.9 {WELCOME_MESSAGE}")
+                await turn_context.send_activity(
+                    AdaptiveCardFactory.get_recommendation_activity("Ask a question or pick one below:")
+                )
 
     async def on_turn(self, turn_context: TurnContext):
         await super().on_turn(turn_context)

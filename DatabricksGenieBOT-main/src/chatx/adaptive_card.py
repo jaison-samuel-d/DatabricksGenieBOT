@@ -2,9 +2,16 @@ import logging
 
 import sqlparse
 from botbuilder.core import CardFactory
-from botbuilder.schema import Attachment, ActivityTypes, Activity
+from botbuilder.schema import (
+    Attachment,
+    ActivityTypes,
+    Activity,
+    CardAction,
+    ActionTypes,
+    SuggestedActions,
+)
 
-from chatx.const import WAITING_MESSAGE
+from chatx.const import WAITING_MESSAGE, RECOMMENDATION_QUESTIONS
 
 # Log
 logger = logging.getLogger(__name__)
@@ -59,44 +66,103 @@ class AdaptiveCardFactory:
 
     @staticmethod
     def get_table_card(
+        genie_answer: str,
         response: str,
         col_output: list[dict[str, int]],
         row_output: list[dict[str, any]],
         query: str,
+        chart_url: str | None = None,
+        chart_insights: str | None = None,
     ) -> Activity:
         """
-        Returns an adaptive card template for displaying query results.
+        Returns an adaptive card: Genie answer → Table → Chart → Chart insights.
         """
+        body: list[dict] = []
+
+        # 1. Genie answer (summary before table) - like Genie UI
+        if genie_answer:
+            body.extend([
+                {
+                    "type": "TextBlock",
+                    "text": "Answer",
+                    "wrap": True,
+                    "size": "Large",
+                    "weight": "Bolder",
+                },
+                {
+                    "type": "Container",
+                    "items": [
+                        {"type": "Icon", "name": "Chat", "size": "Small"},
+                        {"type": "TextBlock", "text": genie_answer, "wrap": True},
+                    ],
+                    "layouts": [
+                        {"type": "Layout.Flow", "horizontalItemsAlignment": "left"}
+                    ],
+                },
+                {"type": "TextBlock", "text": "", "separator": True},
+            ])
+
+        # 2. Table
+        body.extend([
+            {
+                "type": "TextBlock",
+                "text": "Results",
+                "wrap": True,
+                "size": "Large",
+                "weight": "Bolder",
+            },
+            {
+                "type": "Container",
+                "layouts": [
+                    {"type": "Layout.Flow", "horizontalItemsAlignment": "left"}
+                ],
+                "items": [
+                    {"type": "Icon", "name": "TableLightning", "size": "Small"},
+                    {"type": "TextBlock", "text": response, "wrap": True},
+                ],
+            ],
+            {
+                "type": "Table",
+                "roundedCorners": True,
+                "firstRowAsHeaders": True,
+                "columns": col_output,
+                "rows": row_output,
+            },
+        ])
+
+        # 3. Chart + 4. Chart insights (below chart)
+        if chart_url:
+            body.append({"type": "TextBlock", "text": "", "separator": True})
+            body.append({
+                "type": "TextBlock",
+                "text": "Visualization",
+                "wrap": True,
+                "size": "Large",
+                "weight": "Bolder",
+            })
+            body.append({
+                "type": "Image",
+                "url": chart_url,
+                "size": "Large",
+                "altText": "Chart",
+            })
+            if chart_insights:
+                body.append({
+                    "type": "Container",
+                    "items": [
+                        {"type": "Icon", "name": "Info", "size": "Small"},
+                        {"type": "TextBlock", "text": chart_insights, "wrap": True},
+                    ],
+                    "layouts": [
+                        {"type": "Layout.Flow", "horizontalItemsAlignment": "left"}
+                    ],
+                })
+
         attachment = CardFactory.adaptive_card(
             {
                 "type": "AdaptiveCard",
                 "version": "1.5",
-                "body": [
-                    {
-                        "type": "TextBlock",
-                        "text": "Results",
-                        "wrap": True,
-                        "size": "Large",
-                        "weight": "Bolder",
-                    },
-                    {
-                        "type": "Container",
-                        "layouts": [
-                            {"type": "Layout.Flow", "horizontalItemsAlignment": "left"}
-                        ],
-                        "items": [
-                            {"type": "Icon", "name": "TableLightning", "size": "Small"},
-                            {"type": "TextBlock", "text": response, "wrap": True},
-                        ],
-                    },
-                    {
-                        "type": "Table",
-                        "roundedCorners": True,
-                        "firstRowAsHeaders": True,
-                        "columns": col_output,
-                        "rows": row_output,
-                    },
-                ],
+                "body": body,
                 "actions": [
                     {
                         "type": "Action.ShowCard",
@@ -119,3 +185,14 @@ class AdaptiveCardFactory:
         )
 
         return AdaptiveCardFactory.get_activity([attachment])
+
+    @staticmethod
+    def get_recommendation_activity(prompt: str = "Try one of these questions:") -> Activity:
+        """Returns an activity with 4 clickable recommendation questions."""
+        actions = [
+            CardAction(title=q, type=ActionTypes.im_back, value=q)
+            for q in RECOMMENDATION_QUESTIONS
+        ]
+        activity = Activity(type=ActivityTypes.message, text=prompt)
+        activity.suggested_actions = SuggestedActions(actions=actions)
+        return activity
