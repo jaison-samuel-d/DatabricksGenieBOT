@@ -168,9 +168,9 @@ class MyBot(ActivityHandler):
                     wait_activity.id
                 )  # Use the same ID to update the waiting message
                 await turn_context.update_activity(response_activity)
-                # Recommendations as separate card (only 4 questions, below Show SQL/View chart)
+                # Recommendations as separate activity (below card)
                 await turn_context.send_activity(
-                    AdaptiveCardFactory.get_recommendation_card_activity(
+                    AdaptiveCardFactory.get_recommendation_activity(
                         "What else would you like to know?"
                     )
                 )
