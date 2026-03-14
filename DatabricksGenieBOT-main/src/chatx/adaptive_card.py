@@ -13,23 +13,6 @@ from botbuilder.schema import (
 
 from chatx.const import WAITING_MESSAGE, RECOMMENDATION_QUESTIONS, RECOMMENDATION_PROMPT
 
-
-def _message_back_action(title: str, question: str) -> dict:
-    """Action.Submit with msteams messageBack so Teams sends the question as a message."""
-    return {
-        "type": "Action.Submit",
-        "title": title,
-        "data": {
-            "msteams": {
-                "type": "messageBack",
-                "displayText": title,
-                "text": question,
-                "value": {"question": question},
-            },
-            "question": question,
-        },
-    }
-
 # Log
 logger = logging.getLogger(__name__)
 
@@ -188,20 +171,6 @@ class AdaptiveCardFactory:
                     "wrap": True,
                     "size": "Medium",
                 })
-
-        # 5. Recommendations at end (inside card to avoid overlapping)
-        body.append({"type": "TextBlock", "text": "", "separator": True})
-        body.append({
-            "type": "TextBlock",
-            "text": RECOMMENDATION_PROMPT,
-            "wrap": True,
-            "size": "Medium",
-            "weight": "Bolder",
-        })
-        body.append({
-            "type": "ActionSet",
-            "actions": [_message_back_action(q, q) for q in RECOMMENDATION_QUESTIONS],
-        })
 
         # SQL collapsible (ShowCard with TextBlock - more reliable than CodeBlock in Teams)
         formatted_sql = sqlparse.format(query, reindent=True, keyword_case="upper")
