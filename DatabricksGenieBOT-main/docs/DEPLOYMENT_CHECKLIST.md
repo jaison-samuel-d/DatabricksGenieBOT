@@ -46,6 +46,7 @@ Use this checklist to verify your Azure Web App and Bot are configured correctly
 | **Taking longer than usual to connect** | Check `APP_ID`/`APP_PASSWORD` match the bot, and `WEBSITES_PORT` = 8000. |
 | **404 on site URL** | Add health endpoint and redeploy, or ensure `WEBSITES_PORT` = 8000. |
 | **"Bot misconfigured: Databricks credentials..."** | Add `DATABRICKS_CLIENT_ID` and `DATABRICKS_CLIENT_SECRET` to Web App. |
+| **"Send failed. Retry."** in Web Chat | Messaging endpoint wrong or unreachable. Verify URL exactly, no typos. Check Web App has no Access restrictions blocking Bot Framework. |
 
 ---
 

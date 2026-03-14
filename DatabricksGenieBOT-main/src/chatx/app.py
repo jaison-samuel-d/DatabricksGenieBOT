@@ -55,6 +55,19 @@ ADAPTER = BotFrameworkAdapter(SETTINGS)
 logger.info("Genie bot started. APP_ID configured: %s", "yes" if APP_ID else "NO")
 
 
+@web.middleware
+async def log_all_requests(request: web.Request, handler):
+    """Log every incoming request to diagnose connectivity."""
+    logger.info(">>> INCOMING: %s %s", request.method, request.path)
+    try:
+        resp = await handler(request)
+        logger.info("<<< RESPONSE: %s %s -> %d", request.method, request.path, resp.status)
+        return resp
+    except Exception as e:
+        logger.error("<<< ERROR: %s %s -> %s", request.method, request.path, str(e))
+        raise
+
+
 async def messages(req: web.Request) -> web.Response:
     logger.info("POST /api/messages received")
     content_type = req.headers.get("Content-Type", "")
@@ -85,7 +98,7 @@ async def health(_req: web.Request) -> web.Response:
     return web.json_response({"status": "ok", "service": "genie-bot"})
 
 
-app = web.Application()
+app = web.Application(middleware=[log_all_requests])
 app.router.add_get("/", health)
 app.router.add_get("/health", health)
 app.router.add_post("/api/messages", messages)
