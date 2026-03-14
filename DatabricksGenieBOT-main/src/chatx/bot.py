@@ -158,9 +158,7 @@ class MyBot(ActivityHandler):
                     wait_activity.id
                 )  # Use the same ID to update the waiting message
                 await turn_context.update_activity(response_activity)
-                await turn_context.send_activity(
-                    AdaptiveCardFactory.get_recommendation_activity("What else would you like to know?")
-                )
+                # Recommendations are embedded in the card (no separate activity)
                 return
 
             except json.JSONDecodeError:
@@ -175,9 +173,6 @@ class MyBot(ActivityHandler):
                     try:
                         resp = genie_result.process_query_results()
                         await turn_context.send_activity(resp)
-                        await turn_context.send_activity(
-                            AdaptiveCardFactory.get_recommendation_activity()
-                        )
                         return
                     except (NameError, AttributeError):
                         pass

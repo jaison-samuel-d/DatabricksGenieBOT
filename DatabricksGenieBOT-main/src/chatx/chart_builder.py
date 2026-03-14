@@ -216,14 +216,15 @@ def get_chart_url(chart_data: ChartData) -> str:
             },
         }
     else:
-        # bar (default) - with data labels on bars
+        # bar (default) - no legend (avoids metric label using first bar color)
+        # Y-axis title shows the metric; datalabels on bars show values
         config = {
             "type": "bar",
             "data": {
                 "labels": chart_data.labels,
                 "datasets": [
                     {
-                        "label": chart_data.value_col,
+                        "label": "",  # No legend label; avoids colored legend entry
                         "data": chart_data.values,
                         "backgroundColor": colors,
                         "borderColor": "#ffffff",
@@ -233,6 +234,7 @@ def get_chart_url(chart_data: ChartData) -> str:
             },
             "options": {
                 "responsive": True,
+                "legend": {"display": False},
                 "plugins": {
                     "legend": {"display": False},
                     "datalabels": {
@@ -244,7 +246,11 @@ def get_chart_url(chart_data: ChartData) -> str:
                     },
                 },
                 "scales": {
-                    "y": {"beginAtZero": True, "grid": {"color": "#e0e0e0"}},
+                    "y": {
+                        "beginAtZero": True,
+                        "grid": {"color": "#e0e0e0"},
+                        "title": {"display": True, "text": chart_data.value_col},
+                    },
                     "x": {
                         "grid": {"display": False},
                         "ticks": {"maxRotation": 45, "minRotation": 0},

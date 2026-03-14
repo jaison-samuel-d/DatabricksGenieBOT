@@ -66,15 +66,20 @@ Genie may still return a table, but the structure (e.g. region + value columns) 
 
 ---
 
-### 4. Bot-Side Chart Generation (Future)
+### 4. Bot-Side Chart Generation (Implemented)
 
-To show charts in Teams, the bot would need to:
+The bot generates charts from tabular data using **[QuickChart.io](https://quickchart.io/)**:
 
-1. Detect when query results are chartable (e.g. 2 columns: category + numeric)
-2. Generate a chart image (e.g. via [QuickChart.io](https://quickchart.io/) or similar)
-3. Send the image in the Teams message
+1. **Detection** (`chart_builder.py`): When Genie returns query results, the bot detects chartable data (one or more dimension columns + one numeric column).
+2. **Chart config**: Builds a Chart.js JSON config (bar, line, or pie) with:
+   - Professional palette: blue, orange, red, teal, green, etc.
+   - Human-readable labels (e.g. `roi_percentage` → "ROI (%)")
+   - Y-axis title for the metric (no legend, to avoid color confusion)
+   - Data labels on bars showing values
+3. **Image URL**: Encodes the config and requests an image from `https://quickchart.io/chart?c={config}&width=900&height=500`.
+4. **Display**: The image URL is embedded in the Adaptive Card as an `Image` element.
 
-This is not implemented yet. If you want this, we can add it.
+**Files:** `src/chatx/chart_builder.py`, `src/chatx/genie_result.py`
 
 ---
 

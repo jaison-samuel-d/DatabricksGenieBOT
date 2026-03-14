@@ -162,7 +162,8 @@ class GenieResult:
                     {
                         "type": "TableRow",
                         "cells": [
-                            AdaptiveCardFactory.get_cell(col.name) for col in columns
+                            AdaptiveCardFactory.get_cell(col.name, style="emphasis")
+                            for col in columns
                         ],
                     }
                 ]
