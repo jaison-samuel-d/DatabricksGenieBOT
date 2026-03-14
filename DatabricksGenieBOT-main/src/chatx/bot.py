@@ -168,9 +168,9 @@ class MyBot(ActivityHandler):
                     wait_activity.id
                 )  # Use the same ID to update the waiting message
                 await turn_context.update_activity(response_activity)
-                # Recommendations as separate activity (below card, no box) - for all responses
+                # Recommendations as separate card (only 4 questions, below Show SQL/View chart)
                 await turn_context.send_activity(
-                    AdaptiveCardFactory.get_recommendation_activity(
+                    AdaptiveCardFactory.get_recommendation_card_activity(
                         "What else would you like to know?"
                     )
                 )
@@ -273,8 +273,14 @@ class MyBot(ActivityHandler):
     async def on_invoke_activity(self, turn_context: TurnContext):
         if turn_context.activity.name == "signin/verifyState":
             return await self.on_teams_signin_verify_state(turn_context)
-        else:
-            return await super().on_invoke_activity(turn_context)
+        # Handle recommendation card Action.Submit (Web Chat sends invoke)
+        if turn_context.activity.name == "adaptiveCard/action":
+            value = getattr(turn_context.activity, "value", None) or {}
+            question = value.get("question") if isinstance(value, dict) else None
+            if question:
+                turn_context.activity.text = question
+                return await self.on_message_activity(turn_context)
+        return await super().on_invoke_activity(turn_context)
 
     async def _initialize_genie_querier_with_token(
         self, turn_context: TurnContext, user_id: str

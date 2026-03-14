@@ -172,9 +172,8 @@ class AdaptiveCardFactory:
                     "size": "Medium",
                 })
 
-        # SQL collapsible (ShowCard with TextBlock - more reliable than CodeBlock in Teams)
+        # Show SQL + View chart as card actions (renders in card footer, separate from recommendations)
         formatted_sql = sqlparse.format(query, reindent=True, keyword_case="upper")
-
         actions: list[dict] = [
             {
                 "type": "Action.ShowCard",
@@ -213,7 +212,7 @@ class AdaptiveCardFactory:
 
     @staticmethod
     def get_recommendation_activity(prompt: str | None = None) -> Activity:
-        """Returns an activity with 4 clickable recommendation questions."""
+        """Returns an activity with 4 clickable recommendation questions as SuggestedActions."""
         actions = [
             CardAction(title=q, type=ActionTypes.im_back, value=q)
             for q in RECOMMENDATION_QUESTIONS
@@ -221,3 +220,34 @@ class AdaptiveCardFactory:
         activity = Activity(type=ActivityTypes.message, text=prompt or RECOMMENDATION_PROMPT)
         activity.suggested_actions = SuggestedActions(actions=actions)
         return activity
+
+    @staticmethod
+    def get_recommendation_card_activity(prompt: str | None = None) -> Activity:
+        """Returns recommendations as a separate Adaptive Card (only 4 questions, no Show SQL/View chart)."""
+        text = prompt or RECOMMENDATION_PROMPT
+        actions = [
+            {
+                "type": "Action.Submit",
+                "title": q,
+                "data": {
+                    "msteams": {
+                        "type": "messageBack",
+                        "displayText": q,
+                        "text": q,
+                        "value": {"question": q},
+                    },
+                    "question": q,
+                },
+            }
+            for q in RECOMMENDATION_QUESTIONS
+        ]
+        card = {
+            "type": "AdaptiveCard",
+            "version": "1.2",
+            "body": [
+                {"type": "TextBlock", "text": text, "wrap": True, "size": "Medium"},
+            ],
+            "actions": actions,
+        }
+        attachment = CardFactory.adaptive_card(card)
+        return AdaptiveCardFactory.get_activity([attachment])
