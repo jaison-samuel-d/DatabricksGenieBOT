@@ -116,6 +116,16 @@ class MyBot(ActivityHandler):
                 turn_context, OAUTH_CONNECTION_NAME, None
             )
 
+        elif question.strip().lower() in (
+            "hi", "hello", "hey", "start", "help", "intro",
+            "hi there", "hello there", "hey there", "good morning", "good afternoon",
+        ):
+            # Greetings: show welcome + recommendations (don't call Genie)
+            await turn_context.send_activity(WELCOME_MESSAGE)
+            await turn_context.send_activity(
+                AdaptiveCardFactory.get_recommendation_activity()
+            )
+            return
         elif SWITCHING_MESSAGE in question.lower():
             space_id = get_space_id(question)
             if space_id == SPACE_NOT_FOUND:
@@ -158,7 +168,11 @@ class MyBot(ActivityHandler):
                     wait_activity.id
                 )  # Use the same ID to update the waiting message
                 await turn_context.update_activity(response_activity)
-                # Recommendations are embedded in the card (no separate activity)
+                # Recommendations: in card for data responses; separate for text-only
+                if not genie_result.statement_response:
+                    await turn_context.send_activity(
+                        AdaptiveCardFactory.get_recommendation_activity()
+                    )
                 return
 
             except json.JSONDecodeError:
