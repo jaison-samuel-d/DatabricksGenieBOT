@@ -143,24 +143,7 @@ If Genie supports explicit joins, define relationships:
 
 ---
 
-## 6. WELCOME KPI METRICS (Bot configuration)
-
-The bot shows **static** KPI metrics at welcome. Edit `WELCOME_KPI_METRICS` in `src/chatx/const.py`:
-
-```python
-WELCOME_KPI_METRICS = [
-    {"title": "Total Spend", "value": "4.6B"},
-    {"title": "Total Pipeline", "value": "489M"},
-    {"title": "Top ROI Channel", "value": "Facebook (1137%)"},
-    {"title": "Regions", "value": "AMERICAS, EMEA"},
-]
-```
-
-No query is run—update these values manually to reflect your data. Set to `[]` to disable.
-
----
-
-## 7. TEST QUESTIONS (for Genie space)
+## 6. TEST QUESTIONS (for Genie space)
 
 After applying, try:
 

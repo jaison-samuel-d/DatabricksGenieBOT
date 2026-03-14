@@ -122,7 +122,6 @@ class MyBot(ActivityHandler):
         ):
             # Greetings: show welcome + KPIs + recommendations (don't call Genie for the greeting)
             await turn_context.send_activity(WELCOME_MESSAGE)
-            await self._send_welcome_kpis(turn_context, user_id)
             await turn_context.send_activity(
                 AdaptiveCardFactory.get_recommendation_activity()
             )
@@ -229,7 +228,6 @@ class MyBot(ActivityHandler):
                 )
                 self.genie_querier[member.id] = GenieQuerier()
                 await turn_context.send_activity(WELCOME_MESSAGE)
-                await self._send_welcome_kpis(turn_context, member.id)
                 await turn_context.send_activity(
                     AdaptiveCardFactory.get_recommendation_activity()
                 )
@@ -341,12 +339,6 @@ class MyBot(ActivityHandler):
         except Exception as e:
             logger.error(f"Error checking authentication: {str(e)}")
             return False
-
-    async def _send_welcome_kpis(self, turn_context: TurnContext, user_id: str) -> None:
-        """Send static KPI metrics for welcome. No query is run."""
-        kpi_activity = AdaptiveCardFactory.get_kpi_card()
-        if kpi_activity:
-            await turn_context.send_activity(kpi_activity)
 
     async def _trigger_login_dialog(self, turn_context: TurnContext):
         """
