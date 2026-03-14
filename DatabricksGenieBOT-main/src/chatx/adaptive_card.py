@@ -11,7 +11,7 @@ from botbuilder.schema import (
     SuggestedActions,
 )
 
-from chatx.const import WAITING_MESSAGE, RECOMMENDATION_QUESTIONS
+from chatx.const import WAITING_MESSAGE, RECOMMENDATION_QUESTIONS, RECOMMENDATION_PROMPT
 
 # Log
 logger = logging.getLogger(__name__)
@@ -79,6 +79,14 @@ class AdaptiveCardFactory:
         """
         body: list[dict] = []
 
+        # Thicker divider above Summary (visible margin)
+        body.append({
+            "type": "Container",
+            "items": [{"type": "TextBlock", "text": "\u200B", "wrap": True}],
+            "style": "emphasis",
+            "height": "6px",
+        })
+
         # 1. Summary (always first, like Genie) - before table
         if genie_answer:
             body.extend([
@@ -126,7 +134,7 @@ class AdaptiveCardFactory:
             },
         ])
 
-        # 3. Chart + 4. Chart insights (below chart)
+        # 3. Chart + 4. Insights (below chart)
         if chart_url:
             body.append({"type": "TextBlock", "text": "", "separator": True})
             body.append({
@@ -144,14 +152,18 @@ class AdaptiveCardFactory:
             })
             if chart_insights:
                 body.append({
-                    "type": "Container",
-                    "items": [
-                        {"type": "Icon", "name": "Info", "size": "Small"},
-                        {"type": "TextBlock", "text": chart_insights, "wrap": True},
-                    ],
-                    "layouts": [
-                        {"type": "Layout.Flow", "horizontalItemsAlignment": "left"}
-                    ],
+                    "type": "TextBlock",
+                    "text": "Insights",
+                    "wrap": True,
+                    "size": "Large",
+                    "weight": "Bolder",
+                    "spacing": "Medium",
+                })
+                body.append({
+                    "type": "TextBlock",
+                    "text": chart_insights,
+                    "wrap": True,
+                    "size": "Medium",
                 })
 
         # SQL collapsible (ShowCard with TextBlock - more reliable than CodeBlock in Teams)
@@ -194,12 +206,12 @@ class AdaptiveCardFactory:
         return AdaptiveCardFactory.get_activity([attachment])
 
     @staticmethod
-    def get_recommendation_activity(prompt: str = "Or try one of these:") -> Activity:
+    def get_recommendation_activity(prompt: str | None = None) -> Activity:
         """Returns an activity with 4 clickable recommendation questions."""
         actions = [
             CardAction(title=q, type=ActionTypes.im_back, value=q)
             for q in RECOMMENDATION_QUESTIONS
         ]
-        activity = Activity(type=ActivityTypes.message, text=prompt)
+        activity = Activity(type=ActivityTypes.message, text=prompt or RECOMMENDATION_PROMPT)
         activity.suggested_actions = SuggestedActions(actions=actions)
         return activity

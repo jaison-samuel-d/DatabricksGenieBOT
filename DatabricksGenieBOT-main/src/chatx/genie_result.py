@@ -11,15 +11,37 @@ from chatx.chart_builder import build_chart_data, get_chart_url, generate_chart_
 # Log
 logger = logging.getLogger(__name__)
 
+# Short/affirmative replies that are user echo, not real summaries
+_USER_ECHO_PATTERNS = frozenset({
+    "yes", "no", "ok", "okay", "sure", "please", "thanks", "thank you",
+    "y", "n", "yep", "nope", "yeah", "nah", "maybe", "continue", "go",
+})
+
+
+def _is_user_echo(genie_answer: str, question: str) -> bool:
+    """True if genie_answer is just echoing the user's input, not a real summary."""
+    if not genie_answer or len(genie_answer) > 200:
+        return False
+    a = genie_answer.strip().lower()
+    q = (question or "").strip().lower()
+    if a in _USER_ECHO_PATTERNS:
+        return True
+    if q and a == q:
+        return True
+    if q and len(a) < 50 and q in a:
+        return True
+    return False
+
 
 def _generate_summary_from_data(
     columns: list, data_array: list[list], question: str = ""
 ) -> str:
-    """Generate a short summary from the first row when Genie doesn't provide one."""
+    """Generate a short summary from the data when Genie doesn't provide one."""
     if not data_array or not columns:
         return ""
     row = data_array[0]
     parts: list[str] = []
+    n_rows = len(data_array)
     for i, col in enumerate(columns):
         if i >= len(row):
             break
@@ -60,7 +82,10 @@ def _generate_summary_from_data(
             parts.append(f"{name}: {val}")
     if not parts:
         return ""
-    return " | ".join(parts[:5])  # Limit to 5 key stats
+    summary = " | ".join(parts[:5])
+    if n_rows > 1:
+        summary = f"Breakdown across {n_rows} items. Top result: {summary}"
+    return summary
 
 
 @dataclass
@@ -163,8 +188,12 @@ class GenieResult:
                     if self.query_description:
                         chart_insights = f"{self.query_description}\n\n{chart_insights}"
 
-                # Summary before table (Genie-style) - always show meaningful text
-                summary = (genie_answer or self.query_description or "").strip()
+                # Summary: use Genie's answer only if it's a real summary, not user echo
+                summary = ""
+                if genie_answer and not _is_user_echo(genie_answer, self.question or ""):
+                    summary = genie_answer.strip()
+                if not summary and self.query_description:
+                    summary = self.query_description.strip()
                 if not summary or summary.lower() in ("here are the results for your query.", "no attachment found"):
                     data_summary = _generate_summary_from_data(
                         columns, data_array, self.question or ""

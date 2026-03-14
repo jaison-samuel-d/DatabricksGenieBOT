@@ -22,9 +22,12 @@ CHANNEL_AUTH_TENANT = os.getenv("CHANNEL_AUTH_TENANT") or os.getenv("MICROSOFT_A
 OAUTH_CONNECTION_NAME = os.getenv("OAUTH_CONNECTION_NAME", "")
 WELCOME_MESSAGE = (
     "Hi! I'm your Marketing Analytics assistant. "
-    "I can help you explore ROI, spend, pipeline, and more—just ask in plain English. "
-    "What would you like to know?"
+    "This database contains tables for attribution, spend optimization, ROI, and performance insights. "
+    "Key tables include campaign attribution (bet_dme_attribution, d_me_attribution), spend curves (marginal_curve_spend), "
+    "ROI by channel and region (roi_channel_deepdive), and recommendations (recommendation_table, new_insights). "
+    "I can help you explore ROI, spend, pipeline, and more—just ask in plain English. What would you like to know?"
 )
+RECOMMENDATION_PROMPT = "Try these recommended questions:"
 WAITING_MESSAGE = "Looking that up for you..."
 LOGIN_REQUIRED_MESSAGE = "Please type **login** to sign in and use Genie."
 SWITCHING_MESSAGE = "switch to @"

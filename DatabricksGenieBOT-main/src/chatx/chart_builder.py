@@ -236,7 +236,7 @@ def get_chart_url(chart_data: ChartData) -> str:
 
     json_str = json.dumps(config)
     encoded = urllib.parse.quote(json_str)
-    return f"https://quickchart.io/chart?c={encoded}&backgroundColor=white&width=500&height=300"
+    return f"https://quickchart.io/chart?c={encoded}&backgroundColor=white&width=640&height=360"
 
 
 def generate_chart_insights(chart_data: ChartData) -> str:

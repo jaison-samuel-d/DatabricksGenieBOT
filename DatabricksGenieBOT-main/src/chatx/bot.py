@@ -128,7 +128,7 @@ class MyBot(ActivityHandler):
                 f"Switched to {REVERSE_SPACES[space_id]}. What would you like to explore?"
             )
             await turn_context.send_activity(
-                AdaptiveCardFactory.get_recommendation_activity("Try one of these:")
+                AdaptiveCardFactory.get_recommendation_activity()
             )
         else:
             if not space_id or "@" in question.lower():
@@ -201,7 +201,7 @@ class MyBot(ActivityHandler):
                 self.genie_querier[member.id] = GenieQuerier()
                 await turn_context.send_activity(WELCOME_MESSAGE)
                 await turn_context.send_activity(
-                    AdaptiveCardFactory.get_recommendation_activity("Or try one of these:")
+                    AdaptiveCardFactory.get_recommendation_activity()
                 )
 
     async def on_turn(self, turn_context: TurnContext):
