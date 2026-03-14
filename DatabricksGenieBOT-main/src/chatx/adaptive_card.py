@@ -90,14 +90,10 @@ class AdaptiveCardFactory:
                     "weight": "Bolder",
                 },
                 {
-                    "type": "Container",
-                    "items": [
-                        {"type": "Icon", "name": "Chat", "size": "Small"},
-                        {"type": "TextBlock", "text": genie_answer, "wrap": True},
-                    ],
-                    "layouts": [
-                        {"type": "Layout.Flow", "horizontalItemsAlignment": "left"}
-                    ],
+                    "type": "TextBlock",
+                    "text": genie_answer,
+                    "wrap": True,
+                    "size": "Medium",
                 },
                 {"type": "TextBlock", "text": "", "separator": True},
             ])

@@ -12,6 +12,57 @@ from chatx.chart_builder import build_chart_data, get_chart_url, generate_chart_
 logger = logging.getLogger(__name__)
 
 
+def _generate_summary_from_data(
+    columns: list, data_array: list[list], question: str = ""
+) -> str:
+    """Generate a short summary from the first row when Genie doesn't provide one."""
+    if not data_array or not columns:
+        return ""
+    row = data_array[0]
+    parts: list[str] = []
+    for i, col in enumerate(columns):
+        if i >= len(row):
+            break
+        val = row[i]
+        if val is None:
+            continue
+        name = col.name.lower().replace("_", " ")
+        try:
+            if col.type_name in [
+                ColumnInfoTypeName.DECIMAL,
+                ColumnInfoTypeName.DOUBLE,
+                ColumnInfoTypeName.FLOAT,
+            ]:
+                f = float(val)
+                if f >= 1e9:
+                    parts.append(f"{name}: {f/1e9:.2f}B")
+                elif f >= 1e6:
+                    parts.append(f"{name}: {f/1e6:.2f}M")
+                elif f >= 1e3:
+                    parts.append(f"{name}: {f/1e3:.2f}K")
+                else:
+                    parts.append(f"{name}: {f:,.2f}")
+            elif col.type_name in [
+                ColumnInfoTypeName.INT,
+                ColumnInfoTypeName.LONG,
+                ColumnInfoTypeName.SHORT,
+            ]:
+                n = int(val)
+                if abs(n) >= 1e9:
+                    parts.append(f"{name}: {n/1e9:.2f}B")
+                elif abs(n) >= 1e6:
+                    parts.append(f"{name}: {n/1e6:.2f}M")
+                else:
+                    parts.append(f"{name}: {n:,}")
+            else:
+                parts.append(f"{name}: {val}")
+        except (ValueError, TypeError):
+            parts.append(f"{name}: {val}")
+    if not parts:
+        return ""
+    return " | ".join(parts[:5])  # Limit to 5 key stats
+
+
 @dataclass
 class GenieResult:
     query_description: str | None = None
@@ -112,8 +163,13 @@ class GenieResult:
                     if self.query_description:
                         chart_insights = f"{self.query_description}\n\n{chart_insights}"
 
-                # Summary before table (Genie-style) - always show
-                summary = (genie_answer or self.query_description or "Here are the results for your query.").strip()
+                # Summary before table (Genie-style) - always show meaningful text
+                summary = (genie_answer or self.query_description or "").strip()
+                if not summary or summary.lower() in ("here are the results for your query.", "no attachment found"):
+                    data_summary = _generate_summary_from_data(
+                        columns, data_array, self.question or ""
+                    )
+                    summary = data_summary or "Here are the results for your query."
 
                 return AdaptiveCardFactory.get_table_card(
                     genie_answer=summary,
