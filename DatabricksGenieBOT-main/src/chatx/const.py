@@ -46,6 +46,14 @@ SPACE_NOT_FOUND = (
     f"Genie space not found. Please use {LIST_SPACES} to specify the space."
 )
 
+# Static KPI metrics for welcome (edit to match your data; no query is run)
+WELCOME_KPI_METRICS = [
+    {"title": "Total Spend", "value": "4.6B"},
+    {"title": "Total Pipeline", "value": "489M"},
+    {"title": "Top ROI Channel", "value": "Facebook (1137%)"},
+    {"title": "Regions", "value": "AMERICAS, EMEA"},
+]
+
 # Recommendation questions shown on welcome and after each answer (edit to match your data)
 RECOMMENDATION_QUESTIONS = [
     "What's the ROI by channel?",

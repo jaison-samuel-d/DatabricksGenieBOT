@@ -211,6 +211,74 @@ class AdaptiveCardFactory:
         return AdaptiveCardFactory.get_activity([attachment])
 
     @staticmethod
+    def get_kpi_card(metrics: list[dict[str, str]] | None = None) -> Activity | None:
+        """Build a static KPI card from configured metrics. No query is run."""
+        from chatx.const import WELCOME_KPI_METRICS
+
+        facts = metrics or WELCOME_KPI_METRICS
+        if not facts:
+            return None
+
+        # Build KPI blocks in a 2-column grid for a clean, smooth layout
+        kpi_items = []
+        for m in facts:
+            title = m.get("title", "")
+            value = m.get("value", "—")
+            kpi_items.append({
+                "type": "Container",
+                "style": "emphasis",
+                "spacing": "Small",
+                "items": [
+                    {
+                        "type": "TextBlock",
+                        "text": title,
+                        "wrap": True,
+                        "size": "Small",
+                        "isSubtle": True,
+                    },
+                    {
+                        "type": "TextBlock",
+                        "text": value,
+                        "wrap": True,
+                        "size": "Medium",
+                        "weight": "Bolder",
+                        "spacing": "None",
+                    },
+                ],
+            })
+
+        # Pair KPIs into rows (2 per row) for a clean grid
+        rows = []
+        for i in range(0, len(kpi_items), 2):
+            pair = kpi_items[i : i + 2]
+            cols = [{"type": "Column", "width": "stretch", "items": [p]} for p in pair]
+            rows.append({"type": "ColumnSet", "columns": cols, "spacing": "Medium"})
+
+        card = {
+            "type": "AdaptiveCard",
+            "version": "1.2",
+            "body": [
+                {
+                    "type": "Container",
+                    "style": "emphasis",
+                    "spacing": "Medium",
+                    "separator": True,
+                    "items": [
+                        {
+                            "type": "TextBlock",
+                            "text": "Key metrics",
+                            "wrap": True,
+                            "size": "Large",
+                            "weight": "Bolder",
+                        },
+                        {"type": "Container", "items": rows, "spacing": "Medium"},
+                    ],
+                },
+            ],
+        }
+        return AdaptiveCardFactory.get_activity([CardFactory.adaptive_card(card)])
+
+    @staticmethod
     def get_recommendation_activity(prompt: str | None = None) -> Activity:
         """Returns an activity with 4 clickable recommendation questions as SuggestedActions."""
         actions = [

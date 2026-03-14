@@ -120,8 +120,9 @@ class MyBot(ActivityHandler):
             "hi", "hello", "hey", "start", "help", "intro",
             "hi there", "hello there", "hey there", "good morning", "good afternoon",
         ):
-            # Greetings: show welcome + recommendations (don't call Genie)
+            # Greetings: show welcome + KPIs + recommendations (don't call Genie for the greeting)
             await turn_context.send_activity(WELCOME_MESSAGE)
+            await self._send_welcome_kpis(turn_context, user_id)
             await turn_context.send_activity(
                 AdaptiveCardFactory.get_recommendation_activity()
             )
@@ -167,13 +168,20 @@ class MyBot(ActivityHandler):
                 response_activity.id = (
                     wait_activity.id
                 )  # Use the same ID to update the waiting message
-                await turn_context.update_activity(response_activity)
-                # Recommendations as separate activity (below card)
-                await turn_context.send_activity(
-                    AdaptiveCardFactory.get_recommendation_activity(
+                # Attach recommendations to text-only responses (same message = more reliable)
+                if not genie_result.statement_response:
+                    rec = AdaptiveCardFactory.get_recommendation_activity(
                         "What else would you like to know?"
                     )
-                )
+                    response_activity.suggested_actions = rec.suggested_actions
+                await turn_context.update_activity(response_activity)
+                # Recommendations as separate activity for card responses
+                if genie_result.statement_response:
+                    await turn_context.send_activity(
+                        AdaptiveCardFactory.get_recommendation_activity(
+                            "What else would you like to know?"
+                        )
+                    )
                 return
 
             except json.JSONDecodeError:
@@ -187,7 +195,18 @@ class MyBot(ActivityHandler):
                 if "This channel does not support this operation" in str(e):
                     try:
                         resp = genie_result.process_query_results()
+                        if not genie_result.statement_response:
+                            rec = AdaptiveCardFactory.get_recommendation_activity(
+                                "What else would you like to know?"
+                            )
+                            resp.suggested_actions = rec.suggested_actions
                         await turn_context.send_activity(resp)
+                        if genie_result.statement_response:
+                            await turn_context.send_activity(
+                                AdaptiveCardFactory.get_recommendation_activity(
+                                    "What else would you like to know?"
+                                )
+                            )
                         return
                     except (NameError, AttributeError):
                         pass
@@ -210,6 +229,7 @@ class MyBot(ActivityHandler):
                 )
                 self.genie_querier[member.id] = GenieQuerier()
                 await turn_context.send_activity(WELCOME_MESSAGE)
+                await self._send_welcome_kpis(turn_context, member.id)
                 await turn_context.send_activity(
                     AdaptiveCardFactory.get_recommendation_activity()
                 )
@@ -321,6 +341,12 @@ class MyBot(ActivityHandler):
         except Exception as e:
             logger.error(f"Error checking authentication: {str(e)}")
             return False
+
+    async def _send_welcome_kpis(self, turn_context: TurnContext, user_id: str) -> None:
+        """Send static KPI metrics for welcome. No query is run."""
+        kpi_activity = AdaptiveCardFactory.get_kpi_card()
+        if kpi_activity:
+            await turn_context.send_activity(kpi_activity)
 
     async def _trigger_login_dialog(self, turn_context: TurnContext):
         """
