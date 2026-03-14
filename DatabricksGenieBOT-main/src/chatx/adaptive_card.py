@@ -100,12 +100,12 @@ class AdaptiveCardFactory:
         """
         body: list[dict] = []
 
-        # Thicker divider above Summary (visible margin)
+        # Divider above Summary (Teams rejects pixel height; use separator instead)
         body.append({
             "type": "Container",
             "items": [{"type": "TextBlock", "text": "\u200B", "wrap": True}],
             "style": "emphasis",
-            "height": "6px",
+            "separator": True,
         })
 
         # 1. Summary (always first, like Genie) - before table

@@ -114,3 +114,24 @@ Or use your existing CI/CD / ZIP deploy so that the **startup command** and **ap
 2. **Teams:** **Channels** → **Microsoft Teams** → **Open in Teams**. In Teams, open the bot and send the same message.
 
 If you see 401/502, check `APP_ID`/`APP_PASSWORD` and that the bot’s messaging endpoint URL is exactly as above. If Genie returns errors, check `DATABRICKS_HOST`, `DATABRICKS_CLIENT_ID`, and `DATABRICKS_CLIENT_SECRET` and that the service principal has access to the Genie space.
+
+---
+
+## 9. Changes not reflected after push
+
+If you pushed code but the bot still shows old behavior:
+
+1. **Push to `main`** — The GitHub Action deploys only on push to the `main` branch. Pushing to another branch will not trigger deployment.
+
+2. **Check GitHub Actions** — Repo → **Actions** tab. Confirm the deploy workflow ran and completed successfully after your push.
+
+3. **Restart the Web App** — Azure Portal → Web App `teams-genie-bot` → **Overview** → **Restart**.
+
+4. **Start a new conversation** — Teams may cache old cards. Delete the chat with the bot and start a new one, or use "Start over" in Web Chat.
+
+5. **Manual deploy** — If GitHub Actions is not set up or failing:
+   ```bash
+   az login
+   az webapp up --name teams-genie-bot --resource-group Metadata_Framework1 --runtime "PYTHON:3.10"
+   ```
+   Run from the project root (where `requirements.txt` and `src/` are).
