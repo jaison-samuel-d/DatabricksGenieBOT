@@ -37,6 +37,23 @@ class ChartData:
     value_col: str
 
 
+def _format_chart_label(col_name: str) -> str:
+    """Convert column names to human-readable chart labels."""
+    if not col_name:
+        return col_name
+    name = col_name.lstrip("_").replace("_", " ").strip()
+    labels = {
+        "roi percentage": "ROI (%)",
+        "roi": "ROI (%)",
+        "total spend": "Total Spend",
+        "total pipeline": "Total Pipeline",
+        "avg spend": "Avg Spend",
+        "avg pipeline": "Avg Pipeline",
+        "driven pipe": "Driven Pipeline",
+    }
+    return labels.get(name.lower(), name.title())
+
+
 def _is_numeric_type(type_name: ColumnInfoTypeName | None) -> bool:
     if not type_name:
         return False
@@ -133,12 +150,14 @@ def build_chart_data(
         values = values[:max_points]
 
     label_col = " – ".join(columns[i].name for i in dim_idxs)
+    value_col_raw = columns[value_idx].name
+    value_col_display = _format_chart_label(value_col_raw)
     return ChartData(
         labels=labels,
         values=values,
         chart_type=default_type,
         label_col=label_col,
-        value_col=columns[value_idx].name,
+        value_col=value_col_display,
     )
 
 
@@ -236,7 +255,7 @@ def get_chart_url(chart_data: ChartData) -> str:
 
     json_str = json.dumps(config)
     encoded = urllib.parse.quote(json_str)
-    return f"https://quickchart.io/chart?c={encoded}&backgroundColor=white&width=640&height=360"
+    return f"https://quickchart.io/chart?c={encoded}&backgroundColor=white&width=900&height=500"
 
 
 def generate_chart_insights(chart_data: ChartData) -> str:

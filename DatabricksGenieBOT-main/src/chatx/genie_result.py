@@ -11,6 +11,22 @@ from chatx.chart_builder import build_chart_data, get_chart_url, generate_chart_
 # Log
 logger = logging.getLogger(__name__)
 
+# Phrase to strip from Genie summaries (e.g. "You want to see X" -> "X")
+_SUMMARY_PREFIX_TO_STRIP = "you want to see "
+
+
+def _clean_summary_text(text: str) -> str:
+    """Rewrite 'You want to see X' style summaries to direct 'X'."""
+    if not text or len(text) < 20:
+        return text
+    t = text.strip()
+    if t.lower().startswith(_SUMMARY_PREFIX_TO_STRIP):
+        rest = t[len(_SUMMARY_PREFIX_TO_STRIP):].strip()
+        if rest:
+            return rest[0].upper() + rest[1:] if len(rest) > 1 else rest.upper()
+    return text
+
+
 # Short/affirmative replies that are user echo, not real summaries
 _USER_ECHO_PATTERNS = frozenset({
     "yes", "no", "ok", "okay", "sure", "please", "thanks", "thank you",
@@ -199,6 +215,7 @@ class GenieResult:
                         columns, data_array, self.question or ""
                     )
                     summary = data_summary or "Here are the results for your query."
+                summary = _clean_summary_text(summary)
 
                 return AdaptiveCardFactory.get_table_card(
                     genie_answer=summary,

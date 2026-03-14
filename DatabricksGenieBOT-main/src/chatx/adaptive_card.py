@@ -129,6 +129,8 @@ class AdaptiveCardFactory:
                 "type": "Table",
                 "roundedCorners": True,
                 "firstRowAsHeaders": True,
+                "showGridLines": True,
+                "gridStyle": "emphasis",
                 "columns": col_output,
                 "rows": row_output,
             },
@@ -147,7 +149,7 @@ class AdaptiveCardFactory:
             body.append({
                 "type": "Image",
                 "url": chart_url,
-                "size": "Large",
+                "size": "Stretch",
                 "altText": "Chart",
             })
             if chart_insights:
