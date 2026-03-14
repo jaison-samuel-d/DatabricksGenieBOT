@@ -120,7 +120,7 @@ class AdaptiveCardFactory:
                     {"type": "Icon", "name": "TableLightning", "size": "Small"},
                     {"type": "TextBlock", "text": response, "wrap": True},
                 ],
-            ],
+            },
             {
                 "type": "Table",
                 "roundedCorners": True,
