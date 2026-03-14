@@ -125,10 +125,10 @@ class MyBot(ActivityHandler):
             # Reset conversation ID for the new space
             self.conversation_ids.pop(user_id, None)
             await turn_context.send_activity(
-                f"Switched to space: {REVERSE_SPACES[space_id]}"
+                f"Switched to {REVERSE_SPACES[space_id]}. What would you like to explore?"
             )
             await turn_context.send_activity(
-                AdaptiveCardFactory.get_recommendation_activity()
+                AdaptiveCardFactory.get_recommendation_activity("Try one of these:")
             )
         else:
             if not space_id or "@" in question.lower():
@@ -143,7 +143,7 @@ class MyBot(ActivityHandler):
                     self.space_ids[user_id] = new_space_id
                     self.conversation_ids.pop(user_id, None)
                     await turn_context.send_activity(
-                        f"Switched to space: {REVERSE_SPACES[space_id]}"
+                        f"Switched to {REVERSE_SPACES[space_id]}. Ask me anything about the data."
                     )
             try:
                 wait_activity = await turn_context.send_activity(
@@ -159,13 +159,13 @@ class MyBot(ActivityHandler):
                 )  # Use the same ID to update the waiting message
                 await turn_context.update_activity(response_activity)
                 await turn_context.send_activity(
-                    AdaptiveCardFactory.get_recommendation_activity("Ask another question or pick one below:")
+                    AdaptiveCardFactory.get_recommendation_activity("What else would you like to know?")
                 )
                 return
 
             except json.JSONDecodeError:
                 await turn_context.send_activity(
-                    "Failed to decode response from the server."
+                    "Something went wrong on my end. Could you try asking again?"
                 )
                 await turn_context.send_activity(
                     AdaptiveCardFactory.get_recommendation_activity()
@@ -183,7 +183,7 @@ class MyBot(ActivityHandler):
                         pass
                 logger.error(f"Error processing message: {str(e)}")
                 await turn_context.send_activity(
-                    "An error occurred while processing your request."
+                    "I ran into an issue. Please try rephrasing your question or ask again in a moment."
                 )
                 await turn_context.send_activity(
                     AdaptiveCardFactory.get_recommendation_activity()
@@ -199,9 +199,9 @@ class MyBot(ActivityHandler):
                     f"on_members_added_activity: Member added, initializing genie querier for user: {member.id}"
                 )
                 self.genie_querier[member.id] = GenieQuerier()
-                await turn_context.send_activity(f"v0.9 {WELCOME_MESSAGE}")
+                await turn_context.send_activity(WELCOME_MESSAGE)
                 await turn_context.send_activity(
-                    AdaptiveCardFactory.get_recommendation_activity("Ask a question or pick one below:")
+                    AdaptiveCardFactory.get_recommendation_activity("Or try one of these:")
                 )
 
     async def on_turn(self, turn_context: TurnContext):

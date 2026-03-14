@@ -6,7 +6,7 @@ from databricks.sdk.service.dashboards import GenieResultMetadata
 from botbuilder.schema import Activity, ActivityTypes
 
 from chatx.adaptive_card import AdaptiveCardFactory
-from chatx.chart_builder import build_chart_data, get_chart_url
+from chatx.chart_builder import build_chart_data, get_chart_url, generate_chart_insights
 
 # Log
 logger = logging.getLogger(__name__)
@@ -108,11 +108,9 @@ class GenieResult:
                 )
                 if chart_data:
                     chart_url = get_chart_url(chart_data)
-                    chart_insights = (
-                        self.query_description
-                        or f"Key insight: {chart_data.value_col} by {chart_data.label_col}. "
-                        f"Top value: {chart_data.labels[0]} ({chart_data.values[0]:,.2f})"
-                    )
+                    chart_insights = generate_chart_insights(chart_data)
+                    if self.query_description:
+                        chart_insights = f"{self.query_description}\n\n{chart_insights}"
 
                 return AdaptiveCardFactory.get_table_card(
                     genie_answer=genie_answer,

@@ -199,7 +199,7 @@ def get_chart_url(chart_data: ChartData) -> str:
             },
         }
     else:
-        # bar (default)
+        # bar (default) - with data labels on bars
         config = {
             "type": "bar",
             "data": {
@@ -216,7 +216,16 @@ def get_chart_url(chart_data: ChartData) -> str:
             },
             "options": {
                 "responsive": True,
-                "plugins": {"legend": {"display": False}},
+                "plugins": {
+                    "legend": {"display": False},
+                    "datalabels": {
+                        "display": True,
+                        "anchor": "end",
+                        "align": "top",
+                        "color": "#333",
+                        "font": {"size": 11, "weight": "bold"},
+                    },
+                },
                 "scales": {
                     "y": {"beginAtZero": True, "grid": {"color": "#e0e0e0"}},
                     "x": {"grid": {"display": False}},
@@ -227,3 +236,39 @@ def get_chart_url(chart_data: ChartData) -> str:
     json_str = json.dumps(config)
     encoded = urllib.parse.quote(json_str)
     return f"https://quickchart.io/chart?c={encoded}&backgroundColor=white&width=500&height=300"
+
+
+def generate_chart_insights(chart_data: ChartData) -> str:
+    """Generate human-readable insights from chart data."""
+    if not chart_data or not chart_data.labels or not chart_data.values:
+        return ""
+    labels = chart_data.labels
+    values = chart_data.values
+    value_col = chart_data.value_col
+    label_col = chart_data.label_col
+
+    if len(labels) == 1:
+        return f"• {labels[0]}: {values[0]:,.2f} ({value_col})"
+
+    # Top performer
+    top_idx = max(range(len(values)), key=lambda i: values[i])
+    top_label = labels[top_idx]
+    top_val = values[top_idx]
+
+    # Bottom performer
+    bot_idx = min(range(len(values)), key=lambda i: values[i])
+    bot_label = labels[bot_idx]
+    bot_val = values[bot_idx]
+
+    lines = [f"• Top: {top_label} leads with {top_val:,.2f} ({value_col})"]
+
+    if len(labels) >= 2 and bot_val and bot_val > 0:
+        ratio = top_val / bot_val
+        lines.append(f"• {top_label} is {ratio:.1f}x higher than {bot_label} ({bot_val:,.2f})")
+
+    if len(labels) >= 2:
+        total = sum(values)
+        pct = (top_val / total * 100) if total else 0
+        lines.append(f"• {top_label} represents {pct:.0f}% of total")
+
+    return "\n\n".join(lines)

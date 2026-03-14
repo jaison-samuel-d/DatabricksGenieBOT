@@ -31,7 +31,7 @@ class AdaptiveCardFactory:
                 "body": [
                     {
                         "type": "TextBlock",
-                        "text": "Processing your request",
+                        "text": "One moment...",
                         "wrap": True,
                         "size": "Large",
                         "weight": "Bolder",
@@ -158,36 +158,43 @@ class AdaptiveCardFactory:
                     ],
                 })
 
-        attachment = CardFactory.adaptive_card(
-            {
-                "type": "AdaptiveCard",
-                "version": "1.5",
-                "body": body,
-                "actions": [
-                    {
-                        "type": "Action.ShowCard",
-                        "title": "Show/hide SQL query",
-                        "card": {
-                            "type": "AdaptiveCard",
-                            "body": [
-                                {
-                                    "type": "CodeBlock",
-                                    "codeSnippet": sqlparse.format(
-                                        query, reindent=True, keyword_case="upper"
-                                    ),
-                                    "language": "Sql",
-                                }
-                            ],
-                        },
-                    }
-                ],
-            }
-        )
+        # SQL inline (ShowCard/CodeBlock unreliable in Teams)
+        formatted_sql = sqlparse.format(query, reindent=True, keyword_case="upper")
+        body.append({"type": "TextBlock", "text": "", "separator": True})
+        body.append({
+            "type": "TextBlock",
+            "text": "SQL Query",
+            "wrap": True,
+            "size": "Medium",
+            "weight": "Bolder",
+        })
+        body.append({
+            "type": "TextBlock",
+            "text": formatted_sql,
+            "wrap": True,
+            "size": "Small",
+        })
+
+        card_payload: dict = {
+            "type": "AdaptiveCard",
+            "version": "1.5",
+            "body": body,
+        }
+        if chart_url:
+            card_payload["actions"] = [
+                {
+                    "type": "Action.OpenUrl",
+                    "title": "View chart in browser",
+                    "url": chart_url,
+                }
+            ]
+
+        attachment = CardFactory.adaptive_card(card_payload)
 
         return AdaptiveCardFactory.get_activity([attachment])
 
     @staticmethod
-    def get_recommendation_activity(prompt: str = "Try one of these questions:") -> Activity:
+    def get_recommendation_activity(prompt: str = "Or try one of these:") -> Activity:
         """Returns an activity with 4 clickable recommendation questions."""
         actions = [
             CardAction(title=q, type=ActionTypes.im_back, value=q)

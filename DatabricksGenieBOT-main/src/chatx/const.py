@@ -21,11 +21,11 @@ APP_PASSWORD = os.getenv("APP_PASSWORD") or os.getenv("MICROSOFT_APP_PASSWORD", 
 CHANNEL_AUTH_TENANT = os.getenv("CHANNEL_AUTH_TENANT") or os.getenv("MICROSOFT_APP_TENANT_ID", "")
 OAUTH_CONNECTION_NAME = os.getenv("OAUTH_CONNECTION_NAME", "")
 WELCOME_MESSAGE = (
-    "Welcome to Marketing Analytics Genie! I'm your Professional Marketing Analyst. "
-    "Ask me about ROI, spend optimization, attribution, or trends. "
-    "Type your question below to get started."
+    "Hi! I'm your Marketing Analytics assistant. "
+    "I can help you explore ROI, spend, pipeline, and more—just ask in plain English. "
+    "What would you like to know?"
 )
-WAITING_MESSAGE = "Querying Genie for results..."
+WAITING_MESSAGE = "Looking that up for you..."
 LOGIN_REQUIRED_MESSAGE = "Please type **login** to sign in and use Genie."
 SWITCHING_MESSAGE = "switch to @"
 AUTH_METHOD = os.getenv("AUTH_METHOD", "service_principal")  # or "oauth" for user sign-in (video flow)
@@ -45,8 +45,8 @@ SPACE_NOT_FOUND = (
 
 # Recommendation questions shown on welcome and after each answer (edit to match your data)
 RECOMMENDATION_QUESTIONS = [
-    "Give me Facebook ROI",
-    "Show ROI by region and quarter",
-    "What are the top performing channels?",
-    "Compare bookings across regions",
+    "What's the ROI by channel?",
+    "Show me spend by region",
+    "Which channels perform best?",
+    "Compare pipeline across regions",
 ]
