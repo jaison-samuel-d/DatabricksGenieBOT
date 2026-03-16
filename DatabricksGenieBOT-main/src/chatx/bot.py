@@ -182,12 +182,18 @@ class MyBot(ActivityHandler):
                 self.last_questions[user_id] = question
 
                 response_activity = genie_result.process_query_results()
-                response_activity.id = wait_activity.id
-
                 followups = getattr(response_activity, "followup_questions", None)
                 contextual_recs = generate_contextual_recommendations(
                     question, genie_result.genie_answer or "", followups
                 )
+
+                # Remove loading box: delete it, then send response (ensures clean UI)
+                loading_removed = False
+                try:
+                    await turn_context.delete_activity(wait_activity.id)
+                    loading_removed = True
+                except Exception as del_err:
+                    logger.warning(f"Could not delete loading activity, falling back to update: {del_err}")
 
                 if not genie_result.statement_response:
                     rec = AdaptiveCardFactory.get_recommendation_activity(
@@ -196,7 +202,11 @@ class MyBot(ActivityHandler):
                     )
                     response_activity.suggested_actions = rec.suggested_actions
 
-                await turn_context.update_activity(response_activity)
+                if loading_removed:
+                    await turn_context.send_activity(response_activity)
+                else:
+                    response_activity.id = wait_activity.id
+                    await turn_context.update_activity(response_activity)
 
                 if genie_result.statement_response:
                     await turn_context.send_activity(

@@ -17,6 +17,26 @@ from chatx.chart_builder import (
 # Log
 logger = logging.getLogger(__name__)
 
+# Short display names for long column headers (keeps headers on one line)
+_COLUMN_DISPLAY_NAMES = {
+    "total_driven_pipeline": "Driven Pipeline",
+    "total_driven_pipe": "Driven Pipeline",
+    "driven_pipe": "Driven Pipeline",
+    "total_spend": "Spend",
+    "total_pipeline": "Pipeline",
+    "roi_percentage": "ROI %",
+    "roi_pct": "ROI %",
+    "effective_spend": "Effective Spend",
+    "influenced_pipeline": "Influenced Pipe",
+    "sourced_pipeline": "Sourced Pipe",
+}
+
+
+def _get_column_display_name(col_name: str) -> str:
+    """Return short display name for table header to avoid truncation."""
+    key = col_name.lower().replace(" ", "_")
+    return _COLUMN_DISPLAY_NAMES.get(key, col_name.replace("_", " ").title())
+
 # Phrase to strip from Genie summaries (e.g. "You want to see X" -> "X")
 _SUMMARY_PREFIX_TO_STRIP = "you want to see "
 
@@ -176,7 +196,12 @@ class GenieResult:
                 else:
                     logger.warning("No manifest found in statement_response.")
 
-                col_output = [{"width": 1} for _ in columns]
+                # Assign column widths: longer headers get more space to stay on one line
+                col_output = []
+                for col in columns:
+                    display_len = len(_get_column_display_name(col.name))
+                    w = 2 if display_len > 15 else 1
+                    col_output.append({"width": w})
 
                 data_array = statement_response.result.data_array
                 logger.info(f"Data array: {data_array}")
@@ -185,7 +210,12 @@ class GenieResult:
                     {
                         "type": "TableRow",
                         "cells": [
-                            AdaptiveCardFactory.get_cell(col.name, style=None, wrap=False, weight="Bolder")
+                            AdaptiveCardFactory.get_cell(
+                                _get_column_display_name(col.name),
+                                style=None,
+                                wrap=False,
+                                weight="Bolder",
+                            )
                             for col in columns
                         ],
                     }
@@ -201,7 +231,15 @@ class GenieResult:
                             ColumnInfoTypeName.DOUBLE,
                             ColumnInfoTypeName.FLOAT,
                         ]:
-                            formatted_value = f"{float(value):,.2f}"
+                            fval = float(value)
+                            col_lower = col.name.lower()
+                            if "roi" in col_lower and ("pct" in col_lower or "percent" in col_lower):
+                                if fval > 100:
+                                    formatted_value = f"{fval:,.1f}% ({fval/100:.1f}x)"
+                                else:
+                                    formatted_value = f"{fval:,.2f}%"
+                            else:
+                                formatted_value = f"{fval:,.2f}"
                         elif col.type_name in [
                             ColumnInfoTypeName.INT,
                             ColumnInfoTypeName.LONG,

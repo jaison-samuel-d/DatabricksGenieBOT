@@ -169,6 +169,7 @@ def get_chart_url(chart_data: ChartData) -> str:
     colors = colors[: len(chart_data.labels)]
 
     if chart_data.chart_type == "pie":
+        # Use abbreviated values and display:'auto' to prevent overlapping labels
         config = {
             "type": "pie",
             "data": {
@@ -178,17 +179,25 @@ def get_chart_url(chart_data: ChartData) -> str:
                         "data": chart_data.values,
                         "backgroundColor": colors,
                         "borderColor": "#ffffff",
-                        "borderWidth": 3,
-                        "hoverOffset": 12,
+                        "borderWidth": 2,
+                        "hoverOffset": 8,
                     }
                 ],
             },
             "options": {
                 "plugins": {
-                    "legend": {"position": "right", "labels": {"font": {"size": 12, "weight": "bold"}}},
-                    "datalabels": {"display": True, "color": "#1a1a1a", "font": {"size": 11, "weight": "bold"}},
+                    "legend": {"position": "right", "labels": {"font": {"size": 11}}},
+                    "datalabels": {
+                        "display": "auto",
+                        "color": "#1a1a1a",
+                        "font": {"size": 9},
+                        "anchor": "end",
+                        "align": "start",
+                        "offset": 6,
+                        "padding": 4,
+                    },
                 },
-                "layout": {"padding": 24},
+                "layout": {"padding": 32},
             },
         }
     elif chart_data.chart_type == "line":
@@ -268,7 +277,9 @@ def get_chart_url(chart_data: ChartData) -> str:
 
     json_str = json.dumps(config)
     encoded = urllib.parse.quote(json_str)
-    return f"https://quickchart.io/chart?c={encoded}&backgroundColor=white&width=900&height=500"
+    # Use larger dimensions for pie charts to reduce label overlap
+    w, h = (1000, 600) if chart_data.chart_type == "pie" else (900, 500)
+    return f"https://quickchart.io/chart?c={encoded}&backgroundColor=white&width={w}&height={h}"
 
 
 def generate_chart_insights(chart_data: ChartData) -> str:
