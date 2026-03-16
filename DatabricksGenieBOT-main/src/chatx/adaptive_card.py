@@ -23,29 +23,24 @@ class AdaptiveCardFactory:
 
     @staticmethod
     def get_waiting_message(step: int = 1) -> Activity:
-        """Clean, minimal loading indicator. Replaced by response when ready."""
-        steps = ["Understanding your question…", "Querying data…", "Building visualization…"]
-        idx = max(0, min(step - 1, len(steps) - 1))
-        current = steps[idx]
-
+        """Loading indicator. Replaced by response when ready via update_activity."""
         attachment = CardFactory.adaptive_card({
             "type": "AdaptiveCard",
             "version": "1.5",
             "body": [
                 {
-                    "type": "Container",
-                    "spacing": "Medium",
-                    "items": [
-                        {"type": "ProgressBar"},
-                        {
-                            "type": "TextBlock",
-                            "text": current,
-                            "wrap": True,
-                            "size": "Medium",
-                            "weight": "Default",
-                            "spacing": "Small",
-                        },
-                    ],
+                    "type": "TextBlock",
+                    "text": "One moment please…",
+                    "wrap": True,
+                    "size": "Large",
+                    "weight": "Bolder",
+                },
+                {"type": "ProgressBar"},
+                {
+                    "type": "TextBlock",
+                    "text": "Looking that up for you…",
+                    "spacing": "ExtraSmall",
+                    "size": "Small",
                 },
             ],
         })

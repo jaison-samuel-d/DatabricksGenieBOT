@@ -1,4 +1,3 @@
-import asyncio
 import json
 import logging
 
@@ -153,30 +152,12 @@ class MyBot(ActivityHandler):
                     )
             try:
                 wait_activity = await turn_context.send_activity(
-                    AdaptiveCardFactory.get_waiting_message(step=1)
+                    AdaptiveCardFactory.get_waiting_message()
                 )
 
-                async def update_loader_steps():
-                    for s in [2, 3]:
-                        await asyncio.sleep(2.5)
-                        try:
-                            step_card = AdaptiveCardFactory.get_waiting_message(step=s)
-                            step_card.id = wait_activity.id
-                            await turn_context.update_activity(step_card)
-                        except Exception:
-                            break
-
-                loader_task = asyncio.create_task(update_loader_steps())
-                try:
-                    genie_result = await self.genie_querier[user_id].ask_genie(
-                        question, space_id, conversation_id
-                    )
-                finally:
-                    loader_task.cancel()
-                    try:
-                        await loader_task
-                    except asyncio.CancelledError:
-                        pass
+                genie_result = await self.genie_querier[user_id].ask_genie(
+                    question, space_id, conversation_id
+                )
 
                 self.conversation_ids[user_id] = genie_result.conversation_id
                 self.last_questions[user_id] = question
@@ -187,14 +168,6 @@ class MyBot(ActivityHandler):
                     question, genie_result.genie_answer or "", followups
                 )
 
-                # Remove loading box: delete it, then send response (ensures clean UI)
-                loading_removed = False
-                try:
-                    await turn_context.delete_activity(wait_activity.id)
-                    loading_removed = True
-                except Exception as del_err:
-                    logger.warning(f"Could not delete loading activity, falling back to update: {del_err}")
-
                 if not genie_result.statement_response:
                     rec = AdaptiveCardFactory.get_recommendation_activity(
                         "What else would you like to know?",
@@ -202,11 +175,9 @@ class MyBot(ActivityHandler):
                     )
                     response_activity.suggested_actions = rec.suggested_actions
 
-                if loading_removed:
-                    await turn_context.send_activity(response_activity)
-                else:
-                    response_activity.id = wait_activity.id
-                    await turn_context.update_activity(response_activity)
+                # Replace loading message with response (removes loading box from UI)
+                response_activity.id = wait_activity.id
+                await turn_context.update_activity(response_activity)
 
                 if genie_result.statement_response:
                     await turn_context.send_activity(

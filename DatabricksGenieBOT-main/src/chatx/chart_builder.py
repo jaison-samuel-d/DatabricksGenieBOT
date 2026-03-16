@@ -90,6 +90,44 @@ def _parse_value(val: Any, col: ColumnInfo) -> float | None:
         return None
 
 
+def _infer_chart_type_from_data(
+    labels: list[str],
+    values: list[float],
+    label_col: str,
+    value_col_raw: str,
+    question_hint: str,
+) -> str:
+    """
+    Infer best chart type from data shape and column names.
+    Returns 'pie', 'line', or 'bar'.
+    """
+    q = (question_hint or "").lower()
+    label_lower = label_col.lower()
+    value_lower = value_col_raw.lower()
+    n = len(labels)
+    total = sum(values) if values else 0
+
+    # Line: time/sequence dimension (month, quarter, year, date, week)
+    time_keywords = ("month", "quarter", "year", "date", "week", "period", "day")
+    if any(kw in label_lower for kw in time_keywords):
+        return "line"
+    if any(kw in q for kw in ("trend", "over time", "by month", "by quarter")):
+        return "line"
+
+    # Pie: composition data - few categories (2-8), percentage-like values or column
+    is_pct_col = any(kw in value_lower for kw in ("percent", "pct", "share", "composition"))
+    values_sum_to_100 = total > 0 and 99 <= total <= 101
+    few_categories = 2 <= n <= 8
+
+    if few_categories and (is_pct_col or values_sum_to_100):
+        return "pie"
+    if few_categories and any(kw in q for kw in ("share", "composition", "breakdown", "pie", "pie chart")):
+        return "pie"
+
+    # Bar: default for comparisons
+    return "bar"
+
+
 def build_chart_data(
     columns: list[ColumnInfo],
     data_array: list[list[Any]],
@@ -101,14 +139,6 @@ def build_chart_data(
     """
     if not columns or not data_array:
         return None
-
-    # Prefer bar for comparisons, line for trends, pie for composition
-    q = (question_hint or "").lower()
-    default_type = "bar"
-    if "trend" in q or "over time" in q or "by month" in q or "by quarter" in q:
-        default_type = "line"
-    elif "share" in q or "composition" in q or "breakdown" in q or "pie" in q:
-        default_type = "pie"
 
     # Find dimension cols (string/category) and value col (numeric)
     dim_idxs: list[int] = []
@@ -154,10 +184,15 @@ def build_chart_data(
     label_col = " – ".join(columns[i].name for i in dim_idxs)
     value_col_raw = columns[value_idx].name
     value_col_display = _format_chart_label(value_col_raw)
+
+    # Infer chart type from data (question hint can override)
+    chart_type = _infer_chart_type_from_data(
+        labels, values, label_col, value_col_raw, question_hint
+    )
     return ChartData(
         labels=labels,
         values=values,
-        chart_type=default_type,
+        chart_type=chart_type,
         label_col=label_col,
         value_col=value_col_display,
     )
