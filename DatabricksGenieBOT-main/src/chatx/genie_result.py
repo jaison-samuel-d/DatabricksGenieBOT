@@ -21,6 +21,36 @@ def _get_column_display_name(col_name: str) -> str:
     """Return display name for table header - use Genie's column names as-is."""
     return col_name.replace("_", " ")
 
+
+def _format_kmb(value: float | int, col_name: str = "") -> str:
+    """
+    Format numeric value in American K/M/B for table display.
+    Skip abbreviation for ROI, percentage, or small numbers; use 1-2 decimals for K/M/B.
+    """
+    col_lower = (col_name or "").lower()
+    is_ratio_or_pct = (
+        "roi" in col_lower
+        or "pct" in col_lower
+        or "percent" in col_lower
+        or "rate" in col_lower
+    )
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        return str(value)
+    if is_ratio_or_pct or (abs(v) < 1000 and abs(v) == v):
+        if v == int(v):
+            return f"{int(v):,}"
+        return f"{v:,.2f}"
+    abs_v = abs(v)
+    if abs_v >= 1e9:
+        return f"{v / 1e9:,.2f}B"
+    if abs_v >= 1e6:
+        return f"{v / 1e6:,.2f}M"
+    if abs_v >= 1e3:
+        return f"{v / 1e3:,.2f}K"
+    return f"{v:,.2f}" if v != int(v) else f"{int(v):,}"
+
 # Phrase to strip from Genie summaries (e.g. "You want to see X" -> "X")
 _SUMMARY_PREFIX_TO_STRIP = "you want to see "
 
@@ -242,13 +272,13 @@ class GenieResult:
                                 else:
                                     formatted_value = f"{fval:,.2f}%"
                             else:
-                                formatted_value = f"{fval:,.2f}"
+                                formatted_value = _format_kmb(fval, col.name)
                         elif col.type_name in [
                             ColumnInfoTypeName.INT,
                             ColumnInfoTypeName.LONG,
                             ColumnInfoTypeName.SHORT,
                         ]:
-                            formatted_value = f"{int(value):,}"
+                            formatted_value = _format_kmb(int(value), col.name)
                         else:
                             formatted_value = str(value)
                         cell_output.append(

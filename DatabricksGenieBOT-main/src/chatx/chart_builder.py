@@ -43,6 +43,21 @@ class ChartData:
     datasets: list[dict] | None = None
 
 
+def _get_kmb_scale_and_suffix(values: list[float]) -> tuple[float, str]:
+    """Return (scale divisor, suffix) for K/M/B display. values are the main axis data (e.g. revenue)."""
+    flat = [v for v in values if v is not None and (isinstance(v, (int, float)))]
+    if not flat:
+        return 1.0, ""
+    max_val = max(abs(v) for v in flat)
+    if max_val >= 1e9:
+        return 1e9, "B"
+    if max_val >= 1e6:
+        return 1e6, "M"
+    if max_val >= 1e3:
+        return 1e3, "K"
+    return 1.0, ""
+
+
 def _format_chart_label(col_name: str) -> str:
     """Convert column names to human-readable chart labels."""
     if not col_name:
@@ -256,12 +271,23 @@ def _get_quickchart_url(chart_data: ChartData) -> str:
     # Multi-series grouped bar (Genie-style: Previous vs Recommended + % Change)
     if chart_data.datasets and len(chart_data.datasets) >= 2:
         has_y1 = any(d.get("yAxisID") == "y1" for d in chart_data.datasets)
+        # K/M/B scale for left axis (y0) from main value series only
+        y0_values = []
+        for ds in chart_data.datasets:
+            if ds.get("yAxisID") != "y1":
+                y0_values.extend(ds.get("values", []))
+        scale, suffix = _get_kmb_scale_and_suffix(y0_values)
+        y0_label = f"(USD {suffix})" if suffix else "(USD)"
+
         datasets_config = []
         for i, ds in enumerate(chart_data.datasets):
             color = CHART_COLORS[i % len(CHART_COLORS)]
+            vals = ds.get("values", [])
+            if ds.get("yAxisID") != "y1" and scale != 1.0:
+                vals = [v / scale if v is not None else None for v in vals]
             d = {
                 "label": ds["label"],
-                "data": ds["values"],
+                "data": vals,
                 "backgroundColor": color,
                 "borderColor": color,
                 "borderWidth": 1,
@@ -275,11 +301,11 @@ def _get_quickchart_url(chart_data: ChartData) -> str:
         }
         if has_y1:
             scales["yAxes"] = [
-                {"id": "y0", "position": "left", "ticks": {"beginAtZero": True}, "scaleLabel": {"display": True, "labelString": "(USD)"}},
+                {"id": "y0", "position": "left", "ticks": {"beginAtZero": True}, "scaleLabel": {"display": True, "labelString": y0_label}},
                 {"id": "y1", "position": "right", "ticks": {"beginAtZero": True}, "scaleLabel": {"display": True, "labelString": "% Change"}},
             ]
         else:
-            scales["yAxes"] = [{"ticks": {"beginAtZero": True}}]
+            scales["yAxes"] = [{"ticks": {"beginAtZero": True}, "scaleLabel": {"display": True, "labelString": y0_label}}]
 
         chart_title = ""
         if chart_data.label_col and chart_data.datasets:
@@ -338,6 +364,11 @@ def _get_quickchart_url(chart_data: ChartData) -> str:
             },
         }
     elif chart_data.chart_type == "line":
+        scale, suffix = _get_kmb_scale_and_suffix(chart_data.values)
+        line_vals = chart_data.values
+        if scale != 1.0:
+            line_vals = [v / scale if v is not None else None for v in line_vals]
+        y_title = f"{chart_data.value_col} ({suffix})" if suffix else chart_data.value_col
         config = {
             "type": "line",
             "data": {
@@ -345,7 +376,7 @@ def _get_quickchart_url(chart_data: ChartData) -> str:
                 "datasets": [
                     {
                         "label": chart_data.value_col,
-                        "data": chart_data.values,
+                        "data": line_vals,
                         "borderColor": "#4ECDC4",
                         "backgroundColor": "rgba(78, 205, 196, 0.25)",
                         "fill": True,
@@ -362,13 +393,22 @@ def _get_quickchart_url(chart_data: ChartData) -> str:
                 "responsive": True,
                 "plugins": {"legend": {"display": False}},
                 "scales": {
-                    "y": {"beginAtZero": True, "grid": {"color": "#e8e8e8"}},
+                    "y": {
+                        "beginAtZero": True,
+                        "grid": {"color": "#e8e8e8"},
+                        "title": {"display": True, "text": y_title},
+                    },
                     "x": {"grid": {"display": False}},
                 },
             },
         }
     else:
         # bar (default) - vibrant multi-color bars
+        scale, suffix = _get_kmb_scale_and_suffix(chart_data.values)
+        bar_vals = chart_data.values
+        if scale != 1.0:
+            bar_vals = [v / scale if v is not None else None for v in bar_vals]
+        y_title = f"{chart_data.value_col} ({suffix})" if suffix else chart_data.value_col
         config = {
             "type": "bar",
             "data": {
@@ -376,7 +416,7 @@ def _get_quickchart_url(chart_data: ChartData) -> str:
                 "datasets": [
                     {
                         "label": "",
-                        "data": chart_data.values,
+                        "data": bar_vals,
                         "backgroundColor": colors,
                         "borderColor": "#ffffff",
                         "borderWidth": 2,
@@ -402,7 +442,7 @@ def _get_quickchart_url(chart_data: ChartData) -> str:
                     "y": {
                         "beginAtZero": True,
                         "grid": {"color": "#e8e8e8"},
-                        "title": {"display": True, "text": chart_data.value_col},
+                        "title": {"display": True, "text": y_title},
                     },
                     "x": {
                         "grid": {"display": False},

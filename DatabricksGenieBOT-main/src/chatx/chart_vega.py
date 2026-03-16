@@ -183,7 +183,12 @@ def build_vega_spec(chart_data: ChartData) -> dict:
             "mark": {"type": "line", "point": True, "strokeWidth": 2},
             "encoding": {
                 "x": {"field": "category", "type": "nominal"},
-                "y": {"field": "value", "type": "quantitative", "scale": {"domain": [0, None]}},
+                "y": {
+                    "field": "value",
+                    "type": "quantitative",
+                    "axis": {"format": "~s", "grid": True},
+                    "scale": {"domain": [0, None]},
+                },
                 "color": {"field": "series", "scale": {"range": color_range}},
             },
             "config": {"axis": {"labelFontSize": 11}},
@@ -224,7 +229,12 @@ def build_vega_spec(chart_data: ChartData) -> dict:
             "mark": {"type": "bar", "cornerRadius": 4},
             "encoding": {
                 "x": {"field": "category", "type": "nominal", "axis": {"labelAngle": -45}},
-                "y": {"field": "value", "type": "quantitative", "scale": {"domain": [0, None]}},
+                "y": {
+                    "field": "value",
+                    "type": "quantitative",
+                    "axis": {"format": "~s", "grid": True},
+                    "scale": {"domain": [0, None]},
+                },
                 "color": {"value": GENIE_COLORS[0]},
             },
             "config": {"axis": {"labelFontSize": 11}},
