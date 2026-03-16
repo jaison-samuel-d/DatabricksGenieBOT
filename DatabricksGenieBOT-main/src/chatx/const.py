@@ -36,10 +36,16 @@ SWITCHING_MESSAGE = "switch to @"
 AUTH_METHOD = os.getenv("AUTH_METHOD", "service_principal")  # or "oauth" for user sign-in (video flow)
 
 # Spaces mapping in json file
+# Override via GENIE_SPACE_ID env to change space without redeploying (single space only)
 __dir = Path(__file__).parent
 
 with open(f"{__dir}/spaces.json") as f:
     SPACES = json.load(f)
+
+# Allow env override for default space (useful for Azure Web App settings)
+_genie_space_env = os.environ.get("GENIE_SPACE_ID", "").strip()
+if _genie_space_env:
+    SPACES["default"] = _genie_space_env
 REVERSE_SPACES = {v: k for k, v in SPACES.items()}
 # Default space when user has not selected one (e.g. first message)
 DEFAULT_SPACE_ID = next(iter(SPACES.values()), "") if SPACES else ""
