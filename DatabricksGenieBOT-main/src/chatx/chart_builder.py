@@ -10,7 +10,7 @@ from typing import Any
 
 from databricks.sdk.service.sql import ColumnInfo, ColumnInfoTypeName
 
-from chatx.const import CHART_BASE_URL, CHART_USE_VEGA
+from chatx.const import CHART_BASE_URL, CHART_USE_VEGA, CHART_WIDTH, CHART_HEIGHT, CHART_PIE_SIZE
 
 # Log
 logger = logging.getLogger(__name__)
@@ -300,7 +300,7 @@ def _get_quickchart_url(chart_data: ChartData) -> str:
         }
         json_str = json.dumps(config)
         encoded = urllib.parse.quote(json_str)
-        return f"https://quickchart.io/chart?c={encoded}&backgroundColor=white&width=1000&height=500"
+        return f"https://quickchart.io/chart?c={encoded}&backgroundColor=white&width={CHART_WIDTH}&height={CHART_HEIGHT}"
 
     colors = CHART_COLORS * ((len(chart_data.labels) // len(CHART_COLORS)) + 1)
     colors = colors[: len(chart_data.labels)]
@@ -414,8 +414,8 @@ def _get_quickchart_url(chart_data: ChartData) -> str:
 
     json_str = json.dumps(config)
     encoded = urllib.parse.quote(json_str)
-    # Use larger dimensions for pie charts to reduce label overlap
-    w, h = (1000, 600) if chart_data.chart_type == "pie" else (900, 500)
+    # Larger dimensions for Teams full-width display (max 1200px per Teams)
+    w, h = (1200, 600) if chart_data.chart_type == "pie" else (1200, 550)
     return f"https://quickchart.io/chart?c={encoded}&backgroundColor=white&width={w}&height={h}"
 
 

@@ -27,6 +27,7 @@ class AdaptiveCardFactory:
         attachment = CardFactory.adaptive_card({
             "type": "AdaptiveCard",
             "version": "1.5",
+            "msteams": {"width": "full"},
             "body": [
                 {
                     "type": "TextBlock",
@@ -84,60 +85,21 @@ class AdaptiveCardFactory:
         """
         body: list[dict] = []
 
-        # 1. Summary - before table
+        # 1. Summary content only (no heading)
         if genie_answer:
-            body.extend([
-                {
-                    "type": "Container",
-                    "spacing": "None",
-                    "items": [
-                        {
-                            "type": "TextBlock",
-                            "text": "Summary",
-                            "wrap": True,
-                            "size": "Large",
-                            "weight": "Bolder",
-                        },
-                    ],
-                },
-                {
-                    "type": "TextBlock",
-                    "text": genie_answer,
-                    "wrap": True,
-                    "size": "Medium",
-                    "spacing": "Small",
-                },
-            ])
+            body.append({
+                "type": "TextBlock",
+                "text": genie_answer,
+                "wrap": True,
+                "size": "Medium",
+                "spacing": "Small",
+            })
 
-        # 2. Result table (like Genie)
-        n_rows = max(0, len(row_output) - 1)  # exclude header row
+        # 2. Result table (content only, no heading or row count)
         body.extend([
             {
                 "type": "Container",
-                "spacing": "Medium",
-                "items": [
-                    {
-                        "type": "TextBlock",
-                        "text": f"Result table ({n_rows} rows)",
-                        "wrap": True,
-                        "size": "Large",
-                        "weight": "Bolder",
-                    },
-                ],
-            },
-            {
-                "type": "Container",
-                "layouts": [
-                    {"type": "Layout.Flow", "horizontalItemsAlignment": "left"}
-                ],
-                "items": [
-                    {"type": "Icon", "name": "TableLightning", "size": "Small"},
-                    {"type": "TextBlock", "text": response or "", "wrap": True},
-                ],
-            },
-            {
-                "type": "Container",
-                "spacing": "Medium",
+                "spacing": "Small",
                 "separator": True,
                 "items": [
                     {
@@ -166,27 +128,20 @@ class AdaptiveCardFactory:
             },
         ])
 
-        # 3. Chart + 4. Insights (below chart)
+        # 3. Chart + insights (content only, no heading) - full-width layout
         if chart_url:
             body.append({
                 "type": "Container",
-                "spacing": "Medium",
-                "separator": True,
+                "horizontalAlignment": "Stretch",
+                "spacing": "None",
                 "items": [
                     {
-                        "type": "TextBlock",
-                        "text": "Visualization",
-                        "wrap": True,
-                        "size": "Large",
-                        "weight": "Bolder",
+                        "type": "Image",
+                        "url": chart_url,
+                        "size": "Stretch",
+                        "altText": "Chart",
                     },
                 ],
-            })
-            body.append({
-                "type": "Image",
-                "url": chart_url,
-                "size": "Stretch",
-                "altText": "Chart",
             })
             if chart_insights:
                 body.append({
@@ -227,6 +182,7 @@ class AdaptiveCardFactory:
         card_payload: dict = {
             "type": "AdaptiveCard",
             "version": "1.5",
+            "msteams": {"width": "full"},
             "body": body,
             "actions": actions,
         }
@@ -257,6 +213,7 @@ class AdaptiveCardFactory:
         card = {
             "type": "AdaptiveCard",
             "version": "1.2",
+            "msteams": {"width": "full"},
             "body": [
                 {"type": "TextBlock", "text": body_text, "wrap": True, "size": "Medium"},
             ],
@@ -310,6 +267,7 @@ class AdaptiveCardFactory:
         card = {
             "type": "AdaptiveCard",
             "version": "1.2",
+            "msteams": {"width": "full"},
             "body": [
                 {"type": "TextBlock", "text": text, "wrap": True, "size": "Medium"},
             ],

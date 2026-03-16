@@ -57,6 +57,11 @@ SPACE_NOT_FOUND = (
     f"Genie space not found. Please use {LIST_SPACES} to specify the space."
 )
 
+# Chart dimensions for full-screen layout (Teams chat panel ~400–800px; render larger for crisp display)
+CHART_WIDTH = 1400
+CHART_HEIGHT = 700
+CHART_PIE_SIZE = 700
+
 # Recommendation questions shown on welcome and after each answer (edit to match your data)
 RECOMMENDATION_QUESTIONS = [
     "What's the ROI by channel?",

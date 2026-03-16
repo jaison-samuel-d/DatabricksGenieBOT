@@ -178,11 +178,6 @@ class GenieResult:
         genie_answer = (self.genie_answer or "").strip()
         response = ""
 
-        if self.query_result_metadata:
-            metadata = self.query_result_metadata
-            if metadata.row_count:
-                response += f"**Row Count:** {metadata.row_count}\n\n"
-
         if self.statement_response:
             statement_response = self.statement_response
             logger.info(f"Found statement_response: {statement_response}")
@@ -197,11 +192,11 @@ class GenieResult:
                 else:
                     logger.warning("No manifest found in statement_response.")
 
-                # Assign column widths: proportional to header length so full names fit
+                # Assign column widths: proportional to header length for full-width table fit
                 col_output = []
                 for col in columns:
                     display_len = len(_get_column_display_name(col.name))
-                    w = max(1, min(4, (display_len // 6) + 1))
+                    w = max(2, min(5, (display_len // 4) + 2))
                     col_output.append({"width": w})
 
                 data_array = statement_response.result.data_array

@@ -8,6 +8,7 @@ import logging
 from typing import Any
 
 from chatx.chart_builder import ChartData
+from chatx.const import CHART_WIDTH, CHART_HEIGHT, CHART_PIE_SIZE
 
 # Log
 logger = logging.getLogger(__name__)
@@ -126,8 +127,8 @@ def build_vega_spec(chart_data: ChartData) -> dict:
 
         spec = {
             "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
-            "width": 900,
-            "height": 480,
+            "width": CHART_WIDTH,
+            "height": CHART_HEIGHT,
             "title": {
                 "text": f"{chart_data.label_col} – {' vs '.join(series_names[:4])}",
                 "fontSize": 14,
@@ -144,8 +145,8 @@ def build_vega_spec(chart_data: ChartData) -> dict:
         # Grouped bar, single axis
         spec = {
             "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
-            "width": 900,
-            "height": 480,
+            "width": CHART_WIDTH,
+            "height": CHART_HEIGHT,
             "title": {
                 "text": f"{chart_data.label_col} – {' vs '.join(series_names[:4])}",
                 "fontSize": 14,
@@ -176,8 +177,8 @@ def build_vega_spec(chart_data: ChartData) -> dict:
         # Line chart
         spec = {
             "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
-            "width": 900,
-            "height": 480,
+            "width": CHART_WIDTH,
+            "height": CHART_HEIGHT,
             "data": {"values": data},
             "mark": {"type": "line", "point": True, "strokeWidth": 2},
             "encoding": {
@@ -199,8 +200,8 @@ def build_vega_spec(chart_data: ChartData) -> dict:
             pie_data = [{"category": "—", "value": 1}]
         spec = {
             "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
-            "width": 500,
-            "height": 500,
+            "width": CHART_PIE_SIZE,
+            "height": CHART_PIE_SIZE,
             "data": {"values": pie_data},
             "mark": {"type": "arc", "innerRadius": 0},
             "encoding": {
@@ -217,8 +218,8 @@ def build_vega_spec(chart_data: ChartData) -> dict:
         # Single bar
         spec = {
             "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
-            "width": 900,
-            "height": 480,
+            "width": CHART_WIDTH,
+            "height": CHART_HEIGHT,
             "data": {"values": data},
             "mark": {"type": "bar", "cornerRadius": 4},
             "encoding": {
