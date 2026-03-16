@@ -7,6 +7,11 @@ on:
       - main
   workflow_dispatch:
 
+# Cancel in-progress runs when a new push happens (avoids long waits from queued runs)
+concurrency:
+  group: deploy-teams-genie-bot
+  cancel-in-progress: true
+
 jobs:
   deploy:
     runs-on: ubuntu-latest

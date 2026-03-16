@@ -216,7 +216,7 @@ class GenieResult:
                             AdaptiveCardFactory.get_cell(
                                 _get_column_display_name(col.name),
                                 style=None,
-                                wrap=False,
+                                wrap=True,
                                 weight="Bolder",
                             )
                             for col in columns

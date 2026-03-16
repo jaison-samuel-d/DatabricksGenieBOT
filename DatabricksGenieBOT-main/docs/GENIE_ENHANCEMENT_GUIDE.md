@@ -41,6 +41,13 @@ You are an advanced Marketing Analytics Analyst. Your goal is to answer natural 
 - For ROI: compute (pipeline / spend) * 100 when no roi column exists
 - Always use NULLIF(column, 0) when dividing to avoid divide-by-zero
 
+## Number formatting (all output values)
+Format all numeric values in query results and summaries using the American number system with K, M, B suffixes:
+- **K** = thousands (e.g. 9,547 → 9.5K, 1,200 → 1.2K)
+- **M** = millions (e.g. 20,622,094 → 20.6M, 3,000,000 → 3M)
+- **B** = billions (e.g. 1,500,000,000 → 1.5B)
+Apply this to: revenue, spend, pipeline, and any other large numbers in tables and in your written summary. Use 1–2 decimal places (e.g. 2.16M, 13.2K). Percentages and ratios (e.g. ROI, %) can stay as regular numbers (e.g. 2.16, 15.5%).
+
 ## Response Format
 1. Summary: 1–2 sentence insight
 2. Data: Clean table with results
@@ -131,6 +138,43 @@ If Genie supports explicit joins, define relationships:
 - [ ] new_insights_1
 
 **Note:** Genie's SQL validator uses only the first/primary dataset's schema. recommendation_table columns (opp_stage, total_pipeline) will fail validation in SQL examples. Keep recommendation_table queries in Text instructions only.
+
+---
+
+## 4a. TROUBLESHOOTING – TABLE_OR_VIEW_NOT_FOUND (Genie card tables)
+
+If you see an error like:
+
+`[TABLE_OR_VIEW_NOT_FOUND] The table or view 'marginal_curve_graphs__cards_from_recommendation_table__b3a73e55' cannot be found`
+
+**Cause:** Genie sometimes generates SQL that references **card/dashboard views** (names like `...__cards_from_...__<hash>`). Those views exist only in the Genie space or workspace where the card was created and are not stable table names.
+
+**Fix (choose one):**
+
+1. **Use the base table with full catalog/schema**  
+   Run your query against the actual table in your catalog, for example:  
+   `dev.\`bet-allocato\`.recommendation_table`  
+   (Replace `dev` and `bet-allocato` with your catalog and schema if different.)
+
+2. **Use an equivalent query on documented tables**  
+   For “channel-wise revenue and ROI (current vs recommended)”, use **roi_channel_deepdive** (it has Channel, Total_Spend, effective_Spend, driven_pipe). Example:
+
+```
+-- Channel-wise breakdown: revenue (pipeline) and ROI (current vs recommended) using base table
+SELECT
+  Channel AS channel,
+  SUM(driven_pipe) AS current_revenue,
+  SUM(driven_pipe) * SUM(effective_Spend) / NULLIF(SUM(Total_Spend), 0) AS recommended_revenue,
+  SUM(Total_Spend) AS current_spend,
+  SUM(effective_Spend) AS recommended_spend,
+  try_divide(SUM(driven_pipe), NULLIF(SUM(Total_Spend), 0)) AS current_roi,
+  try_divide(SUM(driven_pipe), NULLIF(SUM(Total_Spend), 0)) AS recommended_roi
+FROM dev.`bet-allocato`.roi_channel_deepdive
+WHERE Channel IS NOT NULL
+GROUP BY Channel
+```
+
+If your environment has a **custom view** that already exposes `Previous_Revenue`, `Estimated_Revenue`, `Previous_Spend`, `Recommended_Spend`, create or use that view in your catalog/schema and reference it with the full name: `your_catalog.\`your_schema\`.your_view_name`.
 
 ---
 

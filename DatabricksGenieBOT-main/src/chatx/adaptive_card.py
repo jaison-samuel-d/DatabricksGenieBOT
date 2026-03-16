@@ -52,7 +52,7 @@ class AdaptiveCardFactory:
         """
         Returns a cell object for use in adaptive cards.
         style: optional ContainerStyle (emphasis, accent, etc.) for cell background.
-        wrap: if False, keeps text on one line (use for headers).
+        wrap: if True, text wraps to multiple lines (use for headers to show full column names).
         weight: TextBlock weight (Default, Bolder) for headers.
         """
         cell: dict = {
