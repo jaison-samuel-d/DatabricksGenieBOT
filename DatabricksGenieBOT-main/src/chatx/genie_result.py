@@ -1,3 +1,4 @@
+import re
 from dataclasses import dataclass
 import logging
 
@@ -12,7 +13,6 @@ from chatx.chart_builder import (
     generate_chart_insights,
     generate_followup_questions,
 )
-from chatx.export_store import create_export_token, get_base_url
 
 # Log
 logger = logging.getLogger(__name__)
@@ -31,6 +31,23 @@ def _clean_summary_text(text: str) -> str:
         if rest:
             return rest[0].upper() + rest[1:] if len(rest) > 1 else rest.upper()
     return text
+
+
+def _fix_summary_count_mismatch(summary: str, actual_row_count: int) -> str:
+    """Fix 'top N' in summary when it doesn't match actual row count (e.g. top 10 but 8 rows)."""
+    if not summary or actual_row_count <= 0:
+        return summary
+    match = re.search(r"\btop\s+(\d+)\b", summary, re.IGNORECASE)
+    if match:
+        stated_n = int(match.group(1))
+        if stated_n != actual_row_count:
+            summary = re.sub(
+                r"\btop\s+" + str(stated_n) + r"\b",
+                f"top {actual_row_count}",
+                summary,
+                flags=re.IGNORECASE,
+            )
+    return summary
 
 
 # Short/affirmative replies that are user echo, not real summaries
@@ -168,7 +185,7 @@ class GenieResult:
                     {
                         "type": "TableRow",
                         "cells": [
-                            AdaptiveCardFactory.get_cell(col.name, style="emphasis", wrap=False)
+                            AdaptiveCardFactory.get_cell(col.name, style=None, wrap=False, weight="Bolder")
                             for col in columns
                         ],
                     }
@@ -224,18 +241,9 @@ class GenieResult:
                     summary = data_summary or "Here are the results for your query."
                 summary = _clean_summary_text(summary)
 
-                # Export URLs for CSV/Excel
-                col_names = [c.name for c in columns]
-                export_csv_url = None
-                export_excel_url = None
-                try:
-                    base_url = get_base_url()
-                    csv_tok = create_export_token(col_names, data_array, "csv")
-                    excel_tok = create_export_token(col_names, data_array, "excel")
-                    export_csv_url = f"{base_url}/api/export?token={csv_tok}&format=csv"
-                    export_excel_url = f"{base_url}/api/export?token={excel_tok}&format=excel"
-                except Exception as ex:
-                    logger.warning(f"Could not create export URLs: {ex}")
+                # Fix summary when it says "top N" but actual row count differs
+                row_count = len(data_array)
+                summary = _fix_summary_count_mismatch(summary, row_count)
 
                 # Generate contextual follow-up questions
                 followups = generate_followup_questions(
@@ -250,8 +258,6 @@ class GenieResult:
                     query=self.query or "No query provided",
                     chart_url=chart_url,
                     chart_insights=chart_insights,
-                    export_csv_url=export_csv_url,
-                    export_excel_url=export_excel_url,
                 )
                 activity.followup_questions = followups
                 return activity
@@ -261,17 +267,9 @@ class GenieResult:
                 )
         elif self.message:
             response += f"{self.message}\n\n"
-            return Activity(
-                text=response,
-                type=ActivityTypes.message,
-                attachments=AdaptiveCardFactory.get_feedback_card_attachment(),
-            )
+            return Activity(text=response, type=ActivityTypes.message)
         else:
             response += "No data available.\n\n"
             logger.error("No statement_response or message found in answer_json")
 
-        return Activity(
-            text=response,
-            type=ActivityTypes.message,
-            attachments=AdaptiveCardFactory.get_feedback_card_attachment(),
-        )
+        return Activity(text=response, type=ActivityTypes.message)

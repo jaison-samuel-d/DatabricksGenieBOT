@@ -22,7 +22,7 @@ CHANNEL_AUTH_TENANT = os.getenv("CHANNEL_AUTH_TENANT") or os.getenv("MICROSOFT_A
 OAUTH_CONNECTION_NAME = os.getenv("OAUTH_CONNECTION_NAME", "")
 WELCOME_MESSAGE = (
     "Hi! I'm your Marketing Analytics assistant. "
-    "This database contains tables for attribution, spend optimization, ROI, and performance insights. "
+    "I have access to tables for attribution, spend optimization, ROI, and performance insights. "
     "Key tables include campaign attribution (bet_dme_attribution, d_me_attribution), spend curves (marginal_curve_spend), "
     "ROI by channel and region (roi_channel_deepdive), and recommendations (recommendation_table, new_insights). "
     "I can help you explore ROI, spend, pipeline, and more—just ask in plain English. What would you like to know?"

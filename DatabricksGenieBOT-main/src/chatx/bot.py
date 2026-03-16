@@ -341,11 +341,6 @@ class MyBot(ActivityHandler):
         if turn_context.activity.name == "adaptiveCard/action":
             value = getattr(turn_context.activity, "value", None) or {}
             if isinstance(value, dict):
-                # Handle like/dislike feedback (displayText in messageBack shows acknowledgment)
-                feedback = value.get("feedback")
-                if feedback in ("like", "dislike"):
-                    logger.info(f"User feedback: {feedback}")
-                    return
                 # Handle recommendation question
                 question = value.get("question")
                 if question:

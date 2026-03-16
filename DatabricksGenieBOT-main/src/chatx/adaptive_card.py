@@ -11,88 +11,53 @@ from botbuilder.schema import (
     SuggestedActions,
 )
 
-from chatx.const import WAITING_MESSAGE, RECOMMENDATION_QUESTIONS, RECOMMENDATION_PROMPT
+from chatx.const import RECOMMENDATION_QUESTIONS, RECOMMENDATION_PROMPT
 
 # Log
 logger = logging.getLogger(__name__)
-
-# Feedback action payload for like/dislike (used in Teams messageBack)
-FEEDBACK_LIKE_DATA = {
-    "msteams": {
-        "type": "messageBack",
-        "displayText": "Thanks for your feedback!",
-        "text": "",
-        "value": {"feedback": "like"},
-    },
-    "feedback": "like",
-}
-FEEDBACK_DISLIKE_DATA = {
-    "msteams": {
-        "type": "messageBack",
-        "displayText": "Thanks for your feedback!",
-        "text": "",
-        "value": {"feedback": "dislike"},
-    },
-    "feedback": "dislike",
-}
-
 
 class AdaptiveCardFactory:
     @staticmethod
     def get_activity(attachments: list[Attachment] | None) -> Activity:
         return Activity(type=ActivityTypes.message, attachments=attachments)
 
-    LOADING_STEPS = [
-        ("Understanding your question…", "Analyzing your request"),
-        ("Querying data…", "Fetching results from the database"),
-        ("Building visualization…", "Preparing charts and insights"),
-    ]
-
     @staticmethod
     def get_waiting_message(step: int = 1) -> Activity:
-        """Step-based loader: 1=Understanding, 2=Querying, 3=Building."""
-        steps = AdaptiveCardFactory.LOADING_STEPS
+        """Clean, minimal loading indicator. Replaced by response when ready."""
+        steps = ["Understanding your question…", "Querying data…", "Building visualization…"]
         idx = max(0, min(step - 1, len(steps) - 1))
-        current_text, sub_text = steps[idx]
-
-        body = []
-        for i, (text, _) in enumerate(steps):
-            is_active = i == idx
-            body.append({
-                "type": "Container",
-                "style": "emphasis" if is_active else "default",
-                "spacing": "Small",
-                "items": [
-                    {
-                        "type": "TextBlock",
-                        "text": f"{'●' if is_active else '○'} {text}",
-                        "wrap": True,
-                        "size": "Medium" if is_active else "Small",
-                        "weight": "Bolder" if is_active else "Default",
-                    },
-                ],
-            })
-        body.append({"type": "ProgressBar"})
-        body.append({
-            "type": "TextBlock",
-            "text": sub_text,
-            "spacing": "ExtraSmall",
-            "size": "Small",
-        })
+        current = steps[idx]
 
         attachment = CardFactory.adaptive_card({
             "type": "AdaptiveCard",
             "version": "1.5",
-            "body": body,
+            "body": [
+                {
+                    "type": "Container",
+                    "spacing": "Medium",
+                    "items": [
+                        {"type": "ProgressBar"},
+                        {
+                            "type": "TextBlock",
+                            "text": current,
+                            "wrap": True,
+                            "size": "Medium",
+                            "weight": "Default",
+                            "spacing": "Small",
+                        },
+                    ],
+                },
+            ],
         })
         return AdaptiveCardFactory.get_activity([attachment])
 
     @staticmethod
-    def get_cell(text: str = "", style: str | None = None, wrap: bool = True) -> dict:
+    def get_cell(text: str = "", style: str | None = None, wrap: bool = True, weight: str = "Default") -> dict:
         """
         Returns a cell object for use in adaptive cards.
         style: optional ContainerStyle (emphasis, accent, etc.) for cell background.
         wrap: if False, keeps text on one line (use for headers).
+        weight: TextBlock weight (Default, Bolder) for headers.
         """
         cell: dict = {
             "type": "TableCell",
@@ -101,6 +66,7 @@ class AdaptiveCardFactory:
                     "type": "TextBlock",
                     "text": text,
                     "wrap": wrap,
+                    "weight": weight,
                 }
             ],
         }
@@ -117,20 +83,17 @@ class AdaptiveCardFactory:
         query: str,
         chart_url: str | None = None,
         chart_insights: str | None = None,
-        export_csv_url: str | None = None,
-        export_excel_url: str | None = None,
     ) -> Activity:
         """
         Returns an adaptive card: Genie answer → Table → Chart → Chart insights.
         """
         body: list[dict] = []
 
-        # 1. Summary (always first, like Genie) - before table, no extra spacing
+        # 1. Summary (always first, like Genie) - before table
         if genie_answer:
             body.extend([
                 {
                     "type": "Container",
-                    "style": "emphasis",
                     "spacing": "None",
                     "items": [
                         {
@@ -151,15 +114,10 @@ class AdaptiveCardFactory:
                 },
             ])
 
-        # 2. Table (double-layer container, expandable when many rows)
-        max_preview_rows = 6  # header + 5 data rows
-        rows_to_show = row_output[:max_preview_rows] if len(row_output) > max_preview_rows else row_output
-        has_more_rows = len(row_output) > max_preview_rows
-
+        # 2. Table (all rows, bold 2-layer border, no colors)
         body.extend([
             {
                 "type": "Container",
-                "style": "emphasis",
                 "spacing": "Medium",
                 "items": [
                     {
@@ -183,50 +141,39 @@ class AdaptiveCardFactory:
             },
             {
                 "type": "Container",
-                "style": "emphasis",
                 "spacing": "Medium",
                 "separator": True,
                 "items": [
                     {
                         "type": "Container",
-                        "style": "accent",
-                        "spacing": "Small",
+                        "spacing": "None",
+                        "separator": True,
                         "items": [
                             {
-                                "type": "Table",
-                                "roundedCorners": True,
-                                "firstRowAsHeader": True,
-                                "showGridLines": True,
-                                "gridStyle": "emphasis",
-                                "columns": col_output,
-                                "rows": rows_to_show,
+                                "type": "Container",
+                                "spacing": "None",
+                                "separator": True,
+                                "items": [
+                                    {
+                                        "type": "Table",
+                                        "firstRowAsHeader": True,
+                                        "showGridLines": True,
+                                        "gridStyle": "default",
+                                        "columns": col_output,
+                                        "rows": row_output,
+                                    },
+                                ],
                             },
                         ],
                     },
                 ],
             },
         ])
-        if has_more_rows:
-            data_rows = len(row_output) - 1
-            preview_rows = min(5, data_rows)
-            body.append({
-                "type": "Container",
-                "spacing": "Small",
-                "items": [
-                    {
-                        "type": "TextBlock",
-                        "text": f"Showing {preview_rows} of {data_rows} rows. Tap **Expand table** below to view all.",
-                        "wrap": True,
-                        "size": "Small",
-                    },
-                ],
-            })
 
         # 3. Chart + 4. Insights (below chart)
         if chart_url:
             body.append({
                 "type": "Container",
-                "style": "emphasis",
                 "spacing": "Medium",
                 "separator": True,
                 "items": [
@@ -248,7 +195,6 @@ class AdaptiveCardFactory:
             if chart_insights:
                 body.append({
                     "type": "Container",
-                    "style": "emphasis",
                     "spacing": "Medium",
                     "items": [
                         {
@@ -267,7 +213,7 @@ class AdaptiveCardFactory:
                     "size": "Medium",
                 })
 
-        # Show SQL + View chart + Expand table as card actions
+        # Show SQL + View chart as card actions
         formatted_sql = sqlparse.format(query, reindent=True, keyword_case="upper")
         actions: list[dict] = [
             {
@@ -287,67 +233,12 @@ class AdaptiveCardFactory:
                 },
             },
         ]
-        if has_more_rows:
-            data_rows = len(row_output) - 1
-            preview_rows = min(5, data_rows)
-            summary_line = f"Showing {preview_rows} of {data_rows} rows. Tap **Expand table** below to view all."
-            expand_card_body = [
-                {
-                    "type": "Container",
-                    "style": "emphasis",
-                    "spacing": "Small",
-                    "items": [
-                        {"type": "TextBlock", "text": "Full table", "wrap": True, "size": "Large", "weight": "Bolder"},
-                        {"type": "TextBlock", "text": summary_line, "wrap": True, "size": "Small", "spacing": "Small"},
-                    ],
-                },
-                {
-                    "type": "Table",
-                    "roundedCorners": True,
-                    "firstRowAsHeader": True,
-                    "showGridLines": True,
-                    "gridStyle": "emphasis",
-                    "columns": col_output,
-                    "rows": row_output,
-                },
-            ]
-            actions.insert(0, {
-                "type": "Action.ShowCard",
-                "title": "Expand table",
-                "card": {"type": "AdaptiveCard", "version": "1.5", "body": expand_card_body},
-            })
-        if export_csv_url:
-            actions.append({
-                "type": "Action.OpenUrl",
-                "title": "Export to CSV",
-                "url": export_csv_url,
-            })
-        if export_excel_url:
-            actions.append({
-                "type": "Action.OpenUrl",
-                "title": "Export for Excel",
-                "url": export_excel_url,
-            })
         if chart_url:
             actions.append({
                 "type": "Action.OpenUrl",
                 "title": "View chart in browser",
                 "url": chart_url,
             })
-
-        # Like/dislike feedback buttons on every response
-        actions.extend([
-            {
-                "type": "Action.Submit",
-                "title": "👍 Helpful",
-                "data": FEEDBACK_LIKE_DATA,
-            },
-            {
-                "type": "Action.Submit",
-                "title": "👎 Not helpful",
-                "data": FEEDBACK_DISLIKE_DATA,
-            },
-        ])
 
         card_payload: dict = {
             "type": "AdaptiveCard",
@@ -359,29 +250,6 @@ class AdaptiveCardFactory:
         attachment = CardFactory.adaptive_card(card_payload)
 
         return AdaptiveCardFactory.get_activity([attachment])
-
-    @staticmethod
-    def get_feedback_card_attachment() -> list[Attachment]:
-        """Returns a minimal Adaptive Card with like/dislike feedback buttons."""
-        card = {
-            "type": "AdaptiveCard",
-            "version": "1.2",
-            "body": [],
-            "actions": [
-                {"type": "Action.Submit", "title": "👍 Helpful", "data": FEEDBACK_LIKE_DATA},
-                {"type": "Action.Submit", "title": "👎 Not helpful", "data": FEEDBACK_DISLIKE_DATA},
-            ],
-        }
-        return CardFactory.adaptive_card(card)
-
-    @staticmethod
-    def get_text_with_feedback_activity(text: str) -> Activity:
-        """Returns an Activity with text and like/dislike feedback buttons."""
-        return Activity(
-            type=ActivityTypes.message,
-            text=text,
-            attachments=AdaptiveCardFactory.get_feedback_card_attachment(),
-        )
 
     @staticmethod
     def get_error_recovery_activity(
@@ -408,10 +276,7 @@ class AdaptiveCardFactory:
             "body": [
                 {"type": "TextBlock", "text": body_text, "wrap": True, "size": "Medium"},
             ],
-            "actions": actions + [
-                {"type": "Action.Submit", "title": "👍 Helpful", "data": FEEDBACK_LIKE_DATA},
-                {"type": "Action.Submit", "title": "👎 Not helpful", "data": FEEDBACK_DISLIKE_DATA},
-            ],
+            "actions": actions,
         }
         return Activity(
             type=ActivityTypes.message,
