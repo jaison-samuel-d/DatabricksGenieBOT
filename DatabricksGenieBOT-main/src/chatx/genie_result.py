@@ -17,25 +17,9 @@ from chatx.chart_builder import (
 # Log
 logger = logging.getLogger(__name__)
 
-# Short display names for long column headers (keeps headers on one line)
-_COLUMN_DISPLAY_NAMES = {
-    "total_driven_pipeline": "Driven Pipeline",
-    "total_driven_pipe": "Driven Pipeline",
-    "driven_pipe": "Driven Pipeline",
-    "total_spend": "Spend",
-    "total_pipeline": "Pipeline",
-    "roi_percentage": "ROI %",
-    "roi_pct": "ROI %",
-    "effective_spend": "Effective Spend",
-    "influenced_pipeline": "Influenced Pipe",
-    "sourced_pipeline": "Sourced Pipe",
-}
-
-
 def _get_column_display_name(col_name: str) -> str:
-    """Return short display name for table header to avoid truncation."""
-    key = col_name.lower().replace(" ", "_")
-    return _COLUMN_DISPLAY_NAMES.get(key, col_name.replace("_", " ").title())
+    """Return display name for table header - use Genie's column names as-is."""
+    return col_name.replace("_", " ")
 
 # Phrase to strip from Genie summaries (e.g. "You want to see X" -> "X")
 _SUMMARY_PREFIX_TO_STRIP = "you want to see "
@@ -196,11 +180,11 @@ class GenieResult:
                 else:
                     logger.warning("No manifest found in statement_response.")
 
-                # Assign column widths: longer headers get more space to stay on one line
+                # Assign column widths: proportional to header length so full names fit
                 col_output = []
                 for col in columns:
                     display_len = len(_get_column_display_name(col.name))
-                    w = 2 if display_len > 15 else 1
+                    w = max(1, min(4, (display_len // 6) + 1))
                     col_output.append({"width": w})
 
                 data_array = statement_response.result.data_array
@@ -266,22 +250,19 @@ class GenieResult:
                     if self.query_description:
                         chart_insights = f"{self.query_description}\n\n{chart_insights}"
 
-                # Summary: use Genie's answer only if it's a real summary, not user echo
+                # Summary: use Genie's answer exactly when available (match Genie UI)
                 summary = ""
                 if genie_answer and not _is_user_echo(genie_answer, self.question or ""):
                     summary = genie_answer.strip()
+                    summary = _clean_summary_text(summary)
+                    row_count = len(data_array)
+                    summary = _fix_summary_count_mismatch(summary, row_count)
                 if not summary and self.query_description:
                     summary = self.query_description.strip()
-                if not summary or summary.lower() in ("here are the results for your query.", "no attachment found"):
-                    data_summary = _generate_summary_from_data(
+                if not summary:
+                    summary = _generate_summary_from_data(
                         columns, data_array, self.question or ""
-                    )
-                    summary = data_summary or "Here are the results for your query."
-                summary = _clean_summary_text(summary)
-
-                # Fix summary when it says "top N" but actual row count differs
-                row_count = len(data_array)
-                summary = _fix_summary_count_mismatch(summary, row_count)
+                    ) or "Here are the results for your query."
 
                 # Generate contextual follow-up questions
                 followups = generate_followup_questions(

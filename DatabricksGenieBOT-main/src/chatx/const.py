@@ -19,6 +19,8 @@ APP_ID = os.getenv("APP_ID") or os.getenv("MICROSOFT_APP_ID", "")
 APP_PASSWORD = os.getenv("APP_PASSWORD") or os.getenv("MICROSOFT_APP_PASSWORD", "")
 # For single-tenant bots: use your tenant ID to avoid AADSTS700016 "not found in Bot Framework"
 CHANNEL_AUTH_TENANT = os.getenv("CHANNEL_AUTH_TENANT") or os.getenv("MICROSOFT_APP_TENANT_ID", "")
+# Base URL for chart images (e.g. https://your-app.azurewebsites.net). When set, uses Vega-Lite (Genie-style) instead of QuickChart.
+CHART_BASE_URL = (os.getenv("CHART_BASE_URL") or os.getenv("APP_BASE_URL") or "").rstrip("/")
 OAUTH_CONNECTION_NAME = os.getenv("OAUTH_CONNECTION_NAME", "")
 WELCOME_MESSAGE = (
     "Hi! I'm your Marketing Analytics assistant. "

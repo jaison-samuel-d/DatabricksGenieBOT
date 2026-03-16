@@ -1,6 +1,6 @@
 """
-Chart generation from tabular data using QuickChart.io.
-Uses vibrant, colourful palette for engaging visualizations.
+Chart generation from tabular data.
+Uses Vega-Lite (Genie-style) when CHART_BASE_URL is set, else QuickChart.io.
 """
 import json
 import logging
@@ -9,6 +9,8 @@ from dataclasses import dataclass
 from typing import Any
 
 from databricks.sdk.service.sql import ColumnInfo, ColumnInfoTypeName
+
+from chatx.const import CHART_BASE_URL
 
 # Log
 logger = logging.getLogger(__name__)
@@ -37,6 +39,8 @@ class ChartData:
     chart_type: str  # bar, line, pie
     label_col: str
     value_col: str
+    # Multi-series grouped bar (like Genie): list of {label, values, yAxisID?}
+    datasets: list[dict] | None = None
 
 
 def _format_chart_label(col_name: str) -> str:
@@ -128,64 +132,91 @@ def _infer_chart_type_from_data(
     return "bar"
 
 
+def _is_pct_change_column(col_name: str) -> bool:
+    """True if column looks like % change (different scale from spend/revenue)."""
+    n = col_name.lower()
+    return any(kw in n for kw in ("pct_change", "percent_change", "% change", "pct change"))
+
+
 def build_chart_data(
     columns: list[ColumnInfo],
     data_array: list[list[Any]],
     question_hint: str = "",
 ) -> ChartData | None:
     """
-    Detect chartable data: one label column (string/category) + one numeric column.
-    Returns ChartData or None if not chartable.
+    Detect chartable data. Prefers multi-series grouped bar (like Genie) when
+    we have 1 dimension + 2+ numeric columns. Otherwise single label + value.
     """
     if not columns or not data_array:
         return None
 
-    # Find dimension cols (string/category) and value col (numeric)
+    # Find dimension cols and all numeric cols
     dim_idxs: list[int] = []
-    value_idx = -1
+    value_idxs: list[int] = []
     for i, col in enumerate(columns):
         if _is_numeric_type(col.type_name):
-            if value_idx < 0:
-                value_idx = i
+            value_idxs.append(i)
         else:
             dim_idxs.append(i)
 
-    # Need at least one dimension and one numeric
-    if not dim_idxs or value_idx < 0:
-        if value_idx >= 0 and len(columns) >= 2 and not _is_numeric_type(columns[0].type_name):
+    if not dim_idxs:
+        if value_idxs and len(columns) >= 2 and not _is_numeric_type(columns[0].type_name):
             dim_idxs = [0]
-            value_idx = 1
         else:
             return None
 
-    # Use most granular dimension: last dim col, or combine if multiple (e.g. region + channel)
+    # Build labels from dimension(s)
     labels: list[str] = []
+    for row in data_array:
+        parts = [str(row[i]) if row[i] is not None else "" for i in dim_idxs]
+        label = " – ".join(p for p in parts if p) or "—"
+        labels.append(label)
+
+    max_points = 15
+    if len(labels) > max_points:
+        labels = labels[:max_points]
+        data_array = data_array[:max_points]
+
+    label_col = " – ".join(columns[i].name for i in dim_idxs)
+
+    # Multi-series grouped bar (Genie-style): 1 dim + 2–5 numeric cols
+    if len(value_idxs) >= 2 and len(value_idxs) <= 5 and 2 <= len(labels) <= 12:
+        datasets_list: list[dict] = []
+        for vi in value_idxs:
+            col = columns[vi]
+            vals: list[float] = []
+            for row in data_array:
+                v = _parse_value(row[vi], col)
+                vals.append(round(v, 2) if v is not None else 0)
+            col_label = col.name.replace("_", " ")
+            y_axis = "y1" if _is_pct_change_column(col.name) else "y0"
+            datasets_list.append({"label": col_label, "values": vals, "yAxisID": y_axis})
+        return ChartData(
+            labels=labels,
+            values=[],  # unused for multi-series
+            chart_type="bar",
+            label_col=label_col,
+            value_col="",
+            datasets=datasets_list,
+        )
+
+    # Single-series fallback
+    value_idx = value_idxs[0] if value_idxs else -1
+    if value_idx < 0:
+        return None
+
     values: list[float] = []
     for row in data_array:
         v = _parse_value(row[value_idx], columns[value_idx])
         if v is not None:
-            parts = [
-                str(row[i]) if row[i] is not None else ""
-                for i in dim_idxs
-            ]
-            label = " – ".join(p for p in parts if p) or "—"
-            labels.append(label)
-            values.append(round(v, 2))  # Round to 2 decimals for cleaner chart
-
-    if not labels or not values:
+            values.append(round(v, 2))
+        else:
+            values.append(0)
+    if not any(v != 0 for v in values):
         return None
 
-    # Limit for readability
-    max_points = 15
-    if len(labels) > max_points:
-        labels = labels[:max_points]
-        values = values[:max_points]
-
-    label_col = " – ".join(columns[i].name for i in dim_idxs)
     value_col_raw = columns[value_idx].name
     value_col_display = _format_chart_label(value_col_raw)
-
-    # Infer chart type from data (question hint can override)
     chart_type = _infer_chart_type_from_data(
         labels, values, label_col, value_col_raw, question_hint
     )
@@ -199,7 +230,78 @@ def build_chart_data(
 
 
 def get_chart_url(chart_data: ChartData) -> str:
+    """
+    Build chart URL. When CHART_BASE_URL is set, uses Vega-Lite (Genie-style)
+    and serves from our /api/chart endpoint. Otherwise uses QuickChart.io.
+    """
+    if CHART_BASE_URL:
+        try:
+            from chatx.chart_vega import chart_cache_key, render_chart_png
+            from chatx.chart_cache import store_chart
+
+            png_data = render_chart_png(chart_data)
+            if png_data:
+                key = chart_cache_key(chart_data)
+                store_chart(key, png_data)
+                return f"{CHART_BASE_URL}/api/chart/{key}"
+        except Exception as e:
+            logger.warning("Vega-Lite chart failed, falling back to QuickChart: %s", e)
+
+    # QuickChart.io fallback
+    return _get_quickchart_url(chart_data)
+
+
+def _get_quickchart_url(chart_data: ChartData) -> str:
     """Build QuickChart.io URL with custom colors and style."""
+    # Multi-series grouped bar (Genie-style: Previous vs Recommended + % Change)
+    if chart_data.datasets and len(chart_data.datasets) >= 2:
+        has_y1 = any(d.get("yAxisID") == "y1" for d in chart_data.datasets)
+        datasets_config = []
+        for i, ds in enumerate(chart_data.datasets):
+            color = CHART_COLORS[i % len(CHART_COLORS)]
+            d = {
+                "label": ds["label"],
+                "data": ds["values"],
+                "backgroundColor": color,
+                "borderColor": color,
+                "borderWidth": 1,
+            }
+            if ds.get("yAxisID") == "y1":
+                d["yAxisID"] = "y1"
+            datasets_config.append(d)
+
+        scales: dict = {
+            "xAxes": [{"gridLines": {"display": False}, "ticks": {"maxRotation": 45}}],
+        }
+        if has_y1:
+            scales["yAxes"] = [
+                {"id": "y0", "position": "left", "ticks": {"beginAtZero": True}, "scaleLabel": {"display": True, "labelString": "(USD)"}},
+                {"id": "y1", "position": "right", "ticks": {"beginAtZero": True}, "scaleLabel": {"display": True, "labelString": "% Change"}},
+            ]
+        else:
+            scales["yAxes"] = [{"ticks": {"beginAtZero": True}}]
+
+        chart_title = ""
+        if chart_data.label_col and chart_data.datasets:
+            series = " vs ".join(d["label"] for d in chart_data.datasets[:3])
+            chart_title = f"{chart_data.label_col} - {series}"
+        config = {
+            "type": "bar",
+            "data": {
+                "labels": chart_data.labels,
+                "datasets": datasets_config,
+            },
+            "options": {
+                "responsive": True,
+                "legend": {"display": True, "position": "top"},
+                "title": {"display": bool(chart_title), "text": chart_title or "Chart"},
+                "scales": scales,
+            },
+        }
+        json_str = json.dumps(config)
+        encoded = urllib.parse.quote(json_str)
+        return f"https://quickchart.io/chart?c={encoded}&backgroundColor=white&width=1000&height=500"
+
     colors = CHART_COLORS * ((len(chart_data.labels) // len(CHART_COLORS)) + 1)
     colors = colors[: len(chart_data.labels)]
 
@@ -319,10 +421,15 @@ def get_chart_url(chart_data: ChartData) -> str:
 
 def generate_chart_insights(chart_data: ChartData) -> str:
     """Generate human-readable insights from chart data."""
-    if not chart_data or not chart_data.labels or not chart_data.values:
+    if not chart_data or not chart_data.labels:
         return ""
     labels = chart_data.labels
     values = chart_data.values
+    if not values and chart_data.datasets:
+        # Use first dataset for insights
+        values = chart_data.datasets[0].get("values", [])
+    if not values:
+        return ""
     value_col = chart_data.value_col
     label_col = chart_data.label_col
     n = len(values)
@@ -404,13 +511,16 @@ def generate_followup_questions(
     followups: list[str] = []
     q_lower = (question or "").lower()
 
-    if chart_data and chart_data.labels and chart_data.values:
+    vals = chart_data.values if chart_data.values else (
+        chart_data.datasets[0]["values"] if chart_data.datasets else []
+    )
+    if chart_data and chart_data.labels and vals:
         sorted_pairs = sorted(
-            zip(chart_data.values, chart_data.labels),
+            zip(vals, chart_data.labels),
             key=lambda x: x[0],
             reverse=True,
         )
-        top_val, top_label = sorted_pairs[0]
+        top_val, top_label = sorted_pairs[0] if sorted_pairs else (0, "")
 
         # "Drill into [top performer]"
         if top_label and len(top_label) < 50:

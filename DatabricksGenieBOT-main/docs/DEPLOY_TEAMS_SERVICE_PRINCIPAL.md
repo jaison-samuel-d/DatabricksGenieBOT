@@ -45,6 +45,7 @@ In Azure Portal → **Web App** `teams-genie-bot` → **Configuration** → **Ap
 | `DATABRICKS_HOST` | `https://adb-2376768479807879.19.azuredatabricks.net` | No trailing slash |
 | `DATABRICKS_CLIENT_ID` | \<your Databricks SP client id\> | Required for Genie (service principal) |
 | `DATABRICKS_CLIENT_SECRET` | \<your Databricks SP client secret\> | Required for Genie (service principal) |
+| `CHART_BASE_URL` | Web App URL | Optional. When set, uses Vega-Lite (Genie-style) charts |
 | `APP_ID` or `MICROSOFT_APP_ID` | Bot’s Microsoft App ID | See below |
 | `APP_PASSWORD` or `MICROSOFT_APP_PASSWORD` | Bot’s client secret | From the same app as APP_ID |
 

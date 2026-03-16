@@ -84,7 +84,7 @@ class AdaptiveCardFactory:
         """
         body: list[dict] = []
 
-        # 1. Summary (always first, like Genie) - before table
+        # 1. Analysis (like Genie) - before table
         if genie_answer:
             body.extend([
                 {
@@ -93,7 +93,7 @@ class AdaptiveCardFactory:
                     "items": [
                         {
                             "type": "TextBlock",
-                            "text": "Summary",
+                            "text": "Analysis",
                             "wrap": True,
                             "size": "Large",
                             "weight": "Bolder",
@@ -109,7 +109,8 @@ class AdaptiveCardFactory:
                 },
             ])
 
-        # 2. Table (all rows, bold 2-layer border, no colors)
+        # 2. Result table (like Genie)
+        n_rows = max(0, len(row_output) - 1)  # exclude header row
         body.extend([
             {
                 "type": "Container",
@@ -117,7 +118,7 @@ class AdaptiveCardFactory:
                 "items": [
                     {
                         "type": "TextBlock",
-                        "text": "Results",
+                        "text": f"Result table ({n_rows} rows)",
                         "wrap": True,
                         "size": "Large",
                         "weight": "Bolder",
@@ -131,7 +132,7 @@ class AdaptiveCardFactory:
                 ],
                 "items": [
                     {"type": "Icon", "name": "TableLightning", "size": "Small"},
-                    {"type": "TextBlock", "text": response, "wrap": True},
+                    {"type": "TextBlock", "text": response or "", "wrap": True},
                 ],
             },
             {

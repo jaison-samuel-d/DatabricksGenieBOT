@@ -85,6 +85,24 @@ async def health(_req: web.Request) -> web.Response:
     return web.json_response({"status": "ok", "service": "genie-bot"})
 
 
+async def chart_image(req: web.Request) -> web.Response:
+    """Serve cached chart PNG by key (Vega-Lite rendered, Genie-style)."""
+    from chatx.chart_cache import get_chart, prune_expired
+
+    key = req.match_info.get("key", "")
+    if not key:
+        return web.Response(status=400, text="Missing chart key")
+    prune_expired()
+    png_data = get_chart(key)
+    if not png_data:
+        return web.Response(status=404, text="Chart expired or not found")
+    return web.Response(
+        body=png_data,
+        content_type="image/png",
+        headers={"Cache-Control": "public, max-age=3600"},
+    )
+
+
 async def export_download(req: web.Request) -> web.Response:
     """Serve exported CSV/Excel file by token."""
     from chatx.export_store import get_export
@@ -108,9 +126,29 @@ async def export_download(req: web.Request) -> web.Response:
     return web.Response(body=content, headers=headers)
 
 
+async def privacy(_req: web.Request) -> web.Response:
+    """Privacy policy page (required by Teams manifest)."""
+    return web.Response(
+        text="<h1>Privacy Policy</h1><p>This bot processes your messages to answer questions via Databricks Genie. Messages are sent to the Genie API and are subject to Databricks privacy terms.</p>",
+        content_type="text/html",
+    )
+
+
+async def terms(_req: web.Request) -> web.Response:
+    """Terms of use page (required by Teams manifest)."""
+    return web.Response(
+        text="<h1>Terms of Use</h1><p>Use of this bot is subject to your organization's policies and Databricks terms of service.</p>",
+        content_type="text/html",
+    )
+
+
 app = web.Application()
 app.router.add_get("/", health)
 app.router.add_get("/health", health)
+app.router.add_get("/privacy", privacy)
+app.router.add_get("/terms", terms)
+app.router.add_get("/termsofuse", terms)
+app.router.add_get("/api/chart/{key}", chart_image)
 app.router.add_get("/api/export", export_download)
 app.router.add_post("/api/messages", messages)
 

@@ -152,6 +152,8 @@ sqlparse==0.5.3
 typing-extensions==4.13.2
     # via azure-core
 urllib3==2.4.0
+vl-convert-python>=1.9.0
+    # via databricks-genie-bot (pyproject.toml)
     # via
     #   botbuilder-schema
     #   requests
