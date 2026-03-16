@@ -37,6 +37,23 @@ def _clean_summary_text(text: str) -> str:
     return text
 
 
+def _to_single_paragraph(text: str) -> str:
+    """
+    Convert Genie text to a single flowing paragraph (no separate headings).
+    Strips markdown headers, replaces 'Analysis' with 'Summary', collapses newlines.
+    """
+    if not text or not text.strip():
+        return text
+    t = text.strip()
+    # Replace "Analysis" heading/label with "Summary"
+    t = re.sub(r"\bAnalysis\b", "Summary", t, flags=re.IGNORECASE)
+    # Strip markdown headers (##, ###, ####) - keep the content after them
+    t = re.sub(r"^#{1,6}\s*", "", t, flags=re.MULTILINE)
+    # Collapse multiple newlines/spaces into single space
+    t = re.sub(r"\s+", " ", t)
+    return t.strip()
+
+
 def _fix_summary_count_mismatch(summary: str, actual_row_count: int) -> str:
     """Fix 'top N' in summary when it doesn't match actual row count (e.g. top 10 but 8 rows)."""
     if not summary or actual_row_count <= 0:
@@ -246,9 +263,15 @@ class GenieResult:
                 )
                 if chart_data:
                     chart_url = get_chart_url(chart_data)
-                    chart_insights = generate_chart_insights(chart_data)
-                    if self.query_description:
-                        chart_insights = f"{self.query_description}\n\n{chart_insights}"
+                    # Use Genie's explanation for chart insights when available (same as Genie UI)
+                    if genie_answer and not _is_user_echo(genie_answer, self.question or ""):
+                        chart_insights = genie_answer.strip()
+                        chart_insights = _clean_summary_text(chart_insights)
+                        chart_insights = _fix_summary_count_mismatch(chart_insights, len(data_array))
+                        # Single paragraph format, no separate headings - clearly explains the chart
+                        chart_insights = _to_single_paragraph(chart_insights)
+                    else:
+                        chart_insights = generate_chart_insights(chart_data)
 
                 # Summary: use Genie's answer exactly when available (match Genie UI)
                 summary = ""
@@ -257,6 +280,7 @@ class GenieResult:
                     summary = _clean_summary_text(summary)
                     row_count = len(data_array)
                     summary = _fix_summary_count_mismatch(summary, row_count)
+                    summary = _to_single_paragraph(summary)
                 if not summary and self.query_description:
                     summary = self.query_description.strip()
                 if not summary:

@@ -420,82 +420,95 @@ def _get_quickchart_url(chart_data: ChartData) -> str:
 
 
 def generate_chart_insights(chart_data: ChartData) -> str:
-    """Generate human-readable insights from chart data."""
+    """Generate a single flowing paragraph that explains the chart (Genie-style)."""
     if not chart_data or not chart_data.labels:
         return ""
     labels = chart_data.labels
+    n = len(labels)
+
+    def _fmt(v: float) -> str:
+        if abs(v) >= 1e9:
+            return f"{v/1e9:.2f}B"
+        if abs(v) >= 1e6:
+            return f"{v/1e6:.2f}M"
+        if abs(v) >= 1e3:
+            return f"{v/1e3:.2f}K"
+        return f"{v:,.2f}"
+
+    # Multi-series (e.g. Previous vs Recommended Spend + % Change) - Genie-style paragraph
+    if chart_data.datasets and len(chart_data.datasets) >= 2:
+        series_names = [d["label"] for d in chart_data.datasets]
+        intro = (
+            f"The data shows {', '.join(series_names)} for each {chart_data.label_col.lower()}. "
+        )
+        segs: list[str] = []
+        for i, lbl in enumerate(labels):
+            vals = [d["values"][i] if i < len(d["values"]) else 0 for d in chart_data.datasets]
+            parts: list[str] = []
+            for name, v in zip(series_names, vals):
+                name_lower = name.lower()
+                if "pct" in name_lower or "percent" in name_lower or "change" in name_lower:
+                    direction = "an increase" if v >= 0 else "a decrease"
+                    parts.append(f"{name} of {abs(v):,.1f}% ({direction})")
+                else:
+                    parts.append(f"{name} was {_fmt(v)}")
+            segs.append(f"{lbl}: {', '.join(parts)}")
+        body = " ".join(segs) + ". "
+        # Add concluding insight
+        pct_series = [
+            d for d in chart_data.datasets
+            if "pct" in d["label"].lower() or "change" in d["label"].lower()
+        ]
+        if pct_series and labels:
+            max_idx = max(
+                range(n),
+                key=lambda i: pct_series[0]["values"][i] if i < len(pct_series[0]["values"]) else 0,
+            )
+            min_idx = min(
+                range(n),
+                key=lambda i: pct_series[0]["values"][i] if i < len(pct_series[0]["values"]) else 0,
+            )
+            if max_idx != min_idx:
+                body += (
+                    f"{labels[max_idx]} has the largest recommended increase, "
+                    f"while {labels[min_idx]} shows a decrease. "
+                )
+        return intro + body
+
     values = chart_data.values
-    if not values and chart_data.datasets:
-        # Use first dataset for insights
-        values = chart_data.datasets[0].get("values", [])
     if not values:
         return ""
     value_col = chart_data.value_col
     label_col = chart_data.label_col
-    n = len(values)
 
     if n == 1:
-        return f"• {labels[0]}: {values[0]:,.2f} ({value_col})"
+        return (
+            f"The chart shows {label_col} with a single value: {labels[0]} at "
+            f"{_fmt(values[0])} ({value_col})."
+        )
 
     total = sum(values)
-    avg = total / n if n else 0
     sorted_pairs = sorted(zip(values, labels), key=lambda x: x[0], reverse=True)
-
-    # Top performer
     top_val, top_label = sorted_pairs[0]
     bot_val, bot_label = sorted_pairs[-1]
 
-    lines: list[str] = []
-
-    # Lead insight
-    lines.append(f"• **Top performer:** {top_label} leads with {top_val:,.2f} ({value_col})")
-
-    # Share of total
-    pct_top = (top_val / total * 100) if total else 0
-    lines.append(f"• **Share of total:** {top_label} represents {pct_top:.0f}% of the total ({total:,.2f})")
-
-    # Second and third place (if available)
-    if n >= 2:
-        second_val, second_label = sorted_pairs[1]
-        pct_second = (second_val / total * 100) if total else 0
-        lines.append(f"• **Second:** {second_label} at {second_val:,.2f} ({pct_second:.0f}% of total)")
-    if n >= 3:
-        third_val, third_label = sorted_pairs[2]
-        pct_third = (third_val / total * 100) if total else 0
-        lines.append(f"• **Third:** {third_label} at {third_val:,.2f} ({pct_third:.0f}% of total)")
-
-    # Top vs bottom comparison
+    intro = f"The data shows {value_col} across {n} {label_col.lower()}. "
+    body_parts: list[str] = []
+    for v, lbl in sorted_pairs:
+        pct = (v / total * 100) if total else 0
+        body_parts.append(f"{lbl} has {_fmt(v)} ({pct:.0f}% of the total)")
+    body = ", ".join(body_parts) + ". "
     if n >= 2 and bot_val and bot_val > 0:
         ratio = top_val / bot_val
-        lines.append(f"• **Spread:** {top_label} is {ratio:.1f}x higher than {bot_label} ({bot_val:,.2f})")
-
-    # Average and distribution
-    above_avg = sum(1 for v in values if v > avg)
-    below_avg = sum(1 for v in values if v < avg)
-    lines.append(f"• **Average:** {avg:,.2f} — {above_avg} items above average, {below_avg} below")
-
-    # Range
-    val_range = top_val - bot_val if n >= 2 else 0
-    lines.append(f"• **Range:** {bot_val:,.2f} to {top_val:,.2f} (span of {val_range:,.2f})")
-
-    # Trend (first vs last - useful for time series)
-    if n >= 2 and chart_data.chart_type == "line":
+        body += f"{top_label} leads and is {ratio:.1f}x higher than {bot_label}. "
+    if chart_data.chart_type == "line" and n >= 2:
         first_val, first_label = values[0], labels[0]
         last_val, last_label = values[-1], labels[-1]
         if first_val and first_val != 0:
             pct_change = ((last_val - first_val) / first_val) * 100
             direction = "up" if pct_change > 0 else "down"
-            lines.append(
-                f"• **Trend:** {direction} {abs(pct_change):.1f}% from {first_label} ({first_val:,.2f}) "
-                f"to {last_label} ({last_val:,.2f})"
-            )
-
-    # Bottom performer context
-    if n >= 2:
-        pct_bot = (bot_val / total * 100) if total else 0
-        lines.append(f"• **Lowest:** {bot_label} at {bot_val:,.2f} ({pct_bot:.0f}% of total)")
-
-    return "\n\n".join(lines)
+            body += f"Trend is {direction} {abs(pct_change):.1f}% from {first_label} to {last_label}."
+    return intro + body
 
 
 def generate_followup_questions(

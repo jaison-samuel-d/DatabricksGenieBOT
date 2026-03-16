@@ -84,7 +84,7 @@ class AdaptiveCardFactory:
         """
         body: list[dict] = []
 
-        # 1. Analysis (like Genie) - before table
+        # 1. Summary - before table
         if genie_answer:
             body.extend([
                 {
@@ -93,7 +93,7 @@ class AdaptiveCardFactory:
                     "items": [
                         {
                             "type": "TextBlock",
-                            "text": "Analysis",
+                            "text": "Summary",
                             "wrap": True,
                             "size": "Large",
                             "weight": "Bolder",
@@ -190,23 +190,11 @@ class AdaptiveCardFactory:
             })
             if chart_insights:
                 body.append({
-                    "type": "Container",
-                    "spacing": "Medium",
-                    "items": [
-                        {
-                            "type": "TextBlock",
-                            "text": "Insights",
-                            "wrap": True,
-                            "size": "Large",
-                            "weight": "Bolder",
-                        },
-                    ],
-                })
-                body.append({
                     "type": "TextBlock",
                     "text": chart_insights,
                     "wrap": True,
                     "size": "Medium",
+                    "spacing": "Medium",
                 })
 
         # Show SQL + View chart as card actions
