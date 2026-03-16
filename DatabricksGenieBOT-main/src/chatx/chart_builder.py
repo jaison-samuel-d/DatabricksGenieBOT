@@ -1,6 +1,6 @@
 """
 Chart generation from tabular data.
-Uses Vega-Lite (Genie-style) when CHART_BASE_URL is set, else QuickChart.io.
+Uses QuickChart.io by default (reliable in Azure). Vega-Lite when CHART_BASE_URL + CHART_USE_VEGA are set.
 """
 import json
 import logging
@@ -10,7 +10,7 @@ from typing import Any
 
 from databricks.sdk.service.sql import ColumnInfo, ColumnInfoTypeName
 
-from chatx.const import CHART_BASE_URL
+from chatx.const import CHART_BASE_URL, CHART_USE_VEGA
 
 # Log
 logger = logging.getLogger(__name__)
@@ -231,10 +231,10 @@ def build_chart_data(
 
 def get_chart_url(chart_data: ChartData) -> str:
     """
-    Build chart URL. When CHART_BASE_URL is set, uses Vega-Lite (Genie-style)
-    and serves from our /api/chart endpoint. Otherwise uses QuickChart.io.
+    Build chart URL. When CHART_BASE_URL and CHART_USE_VEGA are set, uses Vega-Lite
+    (requires --workers 1 in gunicorn). Otherwise uses QuickChart.io (reliable in Azure).
     """
-    if CHART_BASE_URL:
+    if CHART_BASE_URL and CHART_USE_VEGA:
         try:
             from chatx.chart_vega import chart_cache_key, render_chart_png
             from chatx.chart_cache import store_chart
