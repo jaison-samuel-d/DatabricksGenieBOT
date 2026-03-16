@@ -6,7 +6,13 @@ from databricks.sdk.service.dashboards import GenieResultMetadata
 from botbuilder.schema import Activity, ActivityTypes
 
 from chatx.adaptive_card import AdaptiveCardFactory
-from chatx.chart_builder import build_chart_data, get_chart_url, generate_chart_insights
+from chatx.chart_builder import (
+    build_chart_data,
+    get_chart_url,
+    generate_chart_insights,
+    generate_followup_questions,
+)
+from chatx.export_store import create_export_token, get_base_url
 
 # Log
 logger = logging.getLogger(__name__)
@@ -153,7 +159,7 @@ class GenieResult:
                 else:
                     logger.warning("No manifest found in statement_response.")
 
-                col_output = [{"width": 3} for _ in columns]
+                col_output = [{"width": 1} for _ in columns]
 
                 data_array = statement_response.result.data_array
                 logger.info(f"Data array: {data_array}")
@@ -162,7 +168,7 @@ class GenieResult:
                     {
                         "type": "TableRow",
                         "cells": [
-                            AdaptiveCardFactory.get_cell(col.name, style="emphasis")
+                            AdaptiveCardFactory.get_cell(col.name, style="emphasis", wrap=False)
                             for col in columns
                         ],
                     }
@@ -218,7 +224,25 @@ class GenieResult:
                     summary = data_summary or "Here are the results for your query."
                 summary = _clean_summary_text(summary)
 
-                return AdaptiveCardFactory.get_table_card(
+                # Export URLs for CSV/Excel
+                col_names = [c.name for c in columns]
+                export_csv_url = None
+                export_excel_url = None
+                try:
+                    base_url = get_base_url()
+                    csv_tok = create_export_token(col_names, data_array, "csv")
+                    excel_tok = create_export_token(col_names, data_array, "excel")
+                    export_csv_url = f"{base_url}/api/export?token={csv_tok}&format=csv"
+                    export_excel_url = f"{base_url}/api/export?token={excel_tok}&format=excel"
+                except Exception as ex:
+                    logger.warning(f"Could not create export URLs: {ex}")
+
+                # Generate contextual follow-up questions
+                followups = generate_followup_questions(
+                    chart_data, chart_insights, summary, self.question or ""
+                )
+
+                activity = AdaptiveCardFactory.get_table_card(
                     genie_answer=summary,
                     response=response,
                     col_output=col_output,
@@ -226,7 +250,11 @@ class GenieResult:
                     query=self.query or "No query provided",
                     chart_url=chart_url,
                     chart_insights=chart_insights,
+                    export_csv_url=export_csv_url,
+                    export_excel_url=export_excel_url,
                 )
+                activity.followup_questions = followups
+                return activity
             else:
                 logger.error(
                     f"Missing result or data_array in statement_response: {statement_response}"
@@ -236,9 +264,14 @@ class GenieResult:
             return Activity(
                 text=response,
                 type=ActivityTypes.message,
+                attachments=AdaptiveCardFactory.get_feedback_card_attachment(),
             )
         else:
             response += "No data available.\n\n"
             logger.error("No statement_response or message found in answer_json")
 
-        return Activity(text=response, type=ActivityTypes.message)
+        return Activity(
+            text=response,
+            type=ActivityTypes.message,
+            attachments=AdaptiveCardFactory.get_feedback_card_attachment(),
+        )

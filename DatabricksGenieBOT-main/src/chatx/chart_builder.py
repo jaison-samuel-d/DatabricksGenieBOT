@@ -1,6 +1,6 @@
 """
 Chart generation from tabular data using QuickChart.io.
-Uses professional palette: #4e79a7 (Blue), #f28e2b (Orange), #e15759 (Red).
+Uses vibrant, colourful palette for engaging visualizations.
 """
 import json
 import logging
@@ -13,16 +13,18 @@ from databricks.sdk.service.sql import ColumnInfo, ColumnInfoTypeName
 # Log
 logger = logging.getLogger(__name__)
 
-# Professional palette - extend for many categories
+# Vibrant, colourful palette for charts
 CHART_COLORS = [
-    "#4e79a7",  # Blue
-    "#f28e2b",  # Orange
-    "#e15759",  # Red
-    "#76b7b2",  # Teal
-    "#59a14f",  # Green
-    "#edc948",  # Yellow
-    "#b07aa1",  # Purple
-    "#ff9da7",  # Pink
+    "#FF6B6B",  # Coral red
+    "#4ECDC4",  # Turquoise
+    "#45B7D1",  # Sky blue
+    "#96CEB4",  # Sage green
+    "#FFEAA7",  # Soft yellow
+    "#DDA0DD",  # Plum
+    "#98D8C8",  # Mint
+    "#F7DC6F",  # Amber
+    "#BB8FCE",  # Lavender
+    "#85C1E9",  # Light blue
 ]
 
 
@@ -176,16 +178,17 @@ def get_chart_url(chart_data: ChartData) -> str:
                         "data": chart_data.values,
                         "backgroundColor": colors,
                         "borderColor": "#ffffff",
-                        "borderWidth": 2,
+                        "borderWidth": 3,
+                        "hoverOffset": 12,
                     }
                 ],
             },
             "options": {
                 "plugins": {
-                    "legend": {"position": "right", "labels": {"font": {"size": 12}}},
-                    "datalabels": {"display": True, "color": "#333"},
+                    "legend": {"position": "right", "labels": {"font": {"size": 12, "weight": "bold"}}},
+                    "datalabels": {"display": True, "color": "#1a1a1a", "font": {"size": 11, "weight": "bold"}},
                 },
-                "layout": {"padding": 20},
+                "layout": {"padding": 24},
             },
         }
     elif chart_data.chart_type == "line":
@@ -197,12 +200,15 @@ def get_chart_url(chart_data: ChartData) -> str:
                     {
                         "label": chart_data.value_col,
                         "data": chart_data.values,
-                        "borderColor": "#4e79a7",
-                        "backgroundColor": "rgba(78, 121, 167, 0.1)",
+                        "borderColor": "#4ECDC4",
+                        "backgroundColor": "rgba(78, 205, 196, 0.25)",
                         "fill": True,
-                        "tension": 0.3,
-                        "pointBackgroundColor": "#4e79a7",
-                        "pointRadius": 4,
+                        "tension": 0.4,
+                        "pointBackgroundColor": "#4ECDC4",
+                        "pointBorderColor": "#2C7A7B",
+                        "pointBorderWidth": 2,
+                        "pointRadius": 5,
+                        "pointHoverRadius": 8,
                     }
                 ],
             },
@@ -210,25 +216,26 @@ def get_chart_url(chart_data: ChartData) -> str:
                 "responsive": True,
                 "plugins": {"legend": {"display": False}},
                 "scales": {
-                    "y": {"beginAtZero": True, "grid": {"color": "#e0e0e0"}},
+                    "y": {"beginAtZero": True, "grid": {"color": "#e8e8e8"}},
                     "x": {"grid": {"display": False}},
                 },
             },
         }
     else:
-        # bar (default) - no legend (avoids metric label using first bar color)
-        # Y-axis title shows the metric; datalabels on bars show values
+        # bar (default) - vibrant multi-color bars
         config = {
             "type": "bar",
             "data": {
                 "labels": chart_data.labels,
                 "datasets": [
                     {
-                        "label": "",  # No legend label; avoids colored legend entry
+                        "label": "",
                         "data": chart_data.values,
                         "backgroundColor": colors,
                         "borderColor": "#ffffff",
-                        "borderWidth": 1,
+                        "borderWidth": 2,
+                        "borderRadius": 4,
+                        "borderSkipped": False,
                     }
                 ],
             },
@@ -241,14 +248,14 @@ def get_chart_url(chart_data: ChartData) -> str:
                         "display": True,
                         "anchor": "end",
                         "align": "top",
-                        "color": "#333",
-                        "font": {"size": 10, "weight": "bold"},
+                        "color": "#1a1a1a",
+                        "font": {"size": 11, "weight": "bold"},
                     },
                 },
                 "scales": {
                     "y": {
                         "beginAtZero": True,
-                        "grid": {"color": "#e0e0e0"},
+                        "grid": {"color": "#e8e8e8"},
                         "title": {"display": True, "text": chart_data.value_col},
                     },
                     "x": {
@@ -272,29 +279,129 @@ def generate_chart_insights(chart_data: ChartData) -> str:
     values = chart_data.values
     value_col = chart_data.value_col
     label_col = chart_data.label_col
+    n = len(values)
 
-    if len(labels) == 1:
+    if n == 1:
         return f"• {labels[0]}: {values[0]:,.2f} ({value_col})"
 
+    total = sum(values)
+    avg = total / n if n else 0
+    sorted_pairs = sorted(zip(values, labels), key=lambda x: x[0], reverse=True)
+
     # Top performer
-    top_idx = max(range(len(values)), key=lambda i: values[i])
-    top_label = labels[top_idx]
-    top_val = values[top_idx]
+    top_val, top_label = sorted_pairs[0]
+    bot_val, bot_label = sorted_pairs[-1]
 
-    # Bottom performer
-    bot_idx = min(range(len(values)), key=lambda i: values[i])
-    bot_label = labels[bot_idx]
-    bot_val = values[bot_idx]
+    lines: list[str] = []
 
-    lines = [f"• Top: {top_label} leads with {top_val:,.2f} ({value_col})"]
+    # Lead insight
+    lines.append(f"• **Top performer:** {top_label} leads with {top_val:,.2f} ({value_col})")
 
-    if len(labels) >= 2 and bot_val and bot_val > 0:
+    # Share of total
+    pct_top = (top_val / total * 100) if total else 0
+    lines.append(f"• **Share of total:** {top_label} represents {pct_top:.0f}% of the total ({total:,.2f})")
+
+    # Second and third place (if available)
+    if n >= 2:
+        second_val, second_label = sorted_pairs[1]
+        pct_second = (second_val / total * 100) if total else 0
+        lines.append(f"• **Second:** {second_label} at {second_val:,.2f} ({pct_second:.0f}% of total)")
+    if n >= 3:
+        third_val, third_label = sorted_pairs[2]
+        pct_third = (third_val / total * 100) if total else 0
+        lines.append(f"• **Third:** {third_label} at {third_val:,.2f} ({pct_third:.0f}% of total)")
+
+    # Top vs bottom comparison
+    if n >= 2 and bot_val and bot_val > 0:
         ratio = top_val / bot_val
-        lines.append(f"• {top_label} is {ratio:.1f}x higher than {bot_label} ({bot_val:,.2f})")
+        lines.append(f"• **Spread:** {top_label} is {ratio:.1f}x higher than {bot_label} ({bot_val:,.2f})")
 
-    if len(labels) >= 2:
-        total = sum(values)
-        pct = (top_val / total * 100) if total else 0
-        lines.append(f"• {top_label} represents {pct:.0f}% of total")
+    # Average and distribution
+    above_avg = sum(1 for v in values if v > avg)
+    below_avg = sum(1 for v in values if v < avg)
+    lines.append(f"• **Average:** {avg:,.2f} — {above_avg} items above average, {below_avg} below")
+
+    # Range
+    val_range = top_val - bot_val if n >= 2 else 0
+    lines.append(f"• **Range:** {bot_val:,.2f} to {top_val:,.2f} (span of {val_range:,.2f})")
+
+    # Trend (first vs last - useful for time series)
+    if n >= 2 and chart_data.chart_type == "line":
+        first_val, first_label = values[0], labels[0]
+        last_val, last_label = values[-1], labels[-1]
+        if first_val and first_val != 0:
+            pct_change = ((last_val - first_val) / first_val) * 100
+            direction = "up" if pct_change > 0 else "down"
+            lines.append(
+                f"• **Trend:** {direction} {abs(pct_change):.1f}% from {first_label} ({first_val:,.2f}) "
+                f"to {last_label} ({last_val:,.2f})"
+            )
+
+    # Bottom performer context
+    if n >= 2:
+        pct_bot = (bot_val / total * 100) if total else 0
+        lines.append(f"• **Lowest:** {bot_label} at {bot_val:,.2f} ({pct_bot:.0f}% of total)")
 
     return "\n\n".join(lines)
+
+
+def generate_followup_questions(
+    chart_data: "ChartData | None",
+    chart_insights: str,
+    genie_answer: str,
+    question: str,
+) -> list[str]:
+    """
+    Generate 2-3 contextual follow-up questions from chart data and insights.
+    Returns list of suggested questions for the user to click.
+    """
+    followups: list[str] = []
+    q_lower = (question or "").lower()
+
+    if chart_data and chart_data.labels and chart_data.values:
+        sorted_pairs = sorted(
+            zip(chart_data.values, chart_data.labels),
+            key=lambda x: x[0],
+            reverse=True,
+        )
+        top_val, top_label = sorted_pairs[0]
+
+        # "Drill into [top performer]"
+        if top_label and len(top_label) < 50:
+            followups.append(f"Drill into {top_label}")
+
+        # "Compare [top] with [second]" if we have 2+
+        if len(sorted_pairs) >= 2:
+            _, second_label = sorted_pairs[1]
+            if second_label and len(second_label) < 50:
+                followups.append(f"Compare {top_label} with {second_label}")
+
+        # "Show trend for [top]" for time-series style questions
+        if any(w in q_lower for w in ["trend", "over time", "by month", "by quarter"]):
+            followups.append(f"Show trend for {top_label}")
+
+    # "Breakdown by region" / "Breakdown by channel" from question
+    if "roi" in q_lower or "spend" in q_lower:
+        if "region" not in q_lower and "channel" in q_lower:
+            followups.append("Breakdown by region")
+        elif "channel" not in q_lower and "region" in q_lower:
+            followups.append("Breakdown by channel")
+
+    # "Compare regions" / "Compare channels"
+    if "channel" in q_lower:
+        followups.append("Compare pipeline across regions")
+    if "region" in q_lower:
+        followups.append("Compare channels by spend")
+
+    # Dedupe and limit to 3
+    seen: set[str] = set()
+    unique: list[str] = []
+    for f in followups:
+        f_clean = f.strip()
+        if f_clean and f_clean not in seen:
+            seen.add(f_clean)
+            unique.append(f_clean)
+            if len(unique) >= 3:
+                break
+
+    return unique

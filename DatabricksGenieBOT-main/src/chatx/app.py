@@ -85,9 +85,33 @@ async def health(_req: web.Request) -> web.Response:
     return web.json_response({"status": "ok", "service": "genie-bot"})
 
 
+async def export_download(req: web.Request) -> web.Response:
+    """Serve exported CSV/Excel file by token."""
+    from chatx.export_store import get_export
+
+    token = req.query.get("token")
+    fmt = req.query.get("format", "csv")
+    if not token:
+        return web.Response(status=400, text="Missing token")
+
+    result = get_export(token)
+    if not result:
+        return web.Response(status=404, text="Export expired or not found")
+
+    content, filename = result
+    content_type = "text/csv; charset=utf-8"
+
+    headers = {
+        "Content-Disposition": f'attachment; filename="{filename}"',
+        "Content-Type": content_type,
+    }
+    return web.Response(body=content, headers=headers)
+
+
 app = web.Application()
 app.router.add_get("/", health)
 app.router.add_get("/health", health)
+app.router.add_get("/api/export", export_download)
 app.router.add_post("/api/messages", messages)
 
 if __name__ == "__main__":

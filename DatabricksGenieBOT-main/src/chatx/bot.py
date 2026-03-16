@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 
@@ -6,6 +7,10 @@ from botbuilder.dialogs import Dialog
 from botbuilder.schema import ChannelAccount, TokenResponse
 
 from chatx.adaptive_card import AdaptiveCardFactory
+from chatx.recommendations import (
+    generate_contextual_recommendations,
+    get_error_recovery_suggestions,
+)
 from chatx.const import (
     SPACE_NOT_FOUND,
     SWITCHING_MESSAGE,
@@ -37,7 +42,8 @@ class MyBot(ActivityHandler):
     ):
         self.conversation_ids: dict[str, str | None] = {}
         self.space_ids: dict[str, str] = {}
-        self.genie_querier: dict[str, GenieQuerier] = {}  # GenieQuerier()
+        self.genie_querier: dict[str, GenieQuerier] = {}
+        self.last_questions: dict[str, str] = {}
         self.conversation_state = conversation_state
         self.user_state = user_state
         self.dialog = dialog
@@ -116,16 +122,6 @@ class MyBot(ActivityHandler):
                 turn_context, OAUTH_CONNECTION_NAME, None
             )
 
-        elif question.strip().lower() in (
-            "hi", "hello", "hey", "start", "help", "intro",
-            "hi there", "hello there", "hey there", "good morning", "good afternoon",
-        ):
-            # Greetings: show welcome + KPIs + recommendations (don't call Genie for the greeting)
-            await turn_context.send_activity(WELCOME_MESSAGE)
-            await turn_context.send_activity(
-                AdaptiveCardFactory.get_recommendation_activity()
-            )
-            return
         elif SWITCHING_MESSAGE in question.lower():
             space_id = get_space_id(question)
             if space_id == SPACE_NOT_FOUND:
@@ -157,64 +153,114 @@ class MyBot(ActivityHandler):
                     )
             try:
                 wait_activity = await turn_context.send_activity(
-                    AdaptiveCardFactory.get_waiting_message()
+                    AdaptiveCardFactory.get_waiting_message(step=1)
                 )
-                genie_result = await self.genie_querier[user_id].ask_genie(
-                    question, space_id, conversation_id
-                )
+
+                async def update_loader_steps():
+                    for s in [2, 3]:
+                        await asyncio.sleep(2.5)
+                        try:
+                            step_card = AdaptiveCardFactory.get_waiting_message(step=s)
+                            step_card.id = wait_activity.id
+                            await turn_context.update_activity(step_card)
+                        except Exception:
+                            break
+
+                loader_task = asyncio.create_task(update_loader_steps())
+                try:
+                    genie_result = await self.genie_querier[user_id].ask_genie(
+                        question, space_id, conversation_id
+                    )
+                finally:
+                    loader_task.cancel()
+                    try:
+                        await loader_task
+                    except asyncio.CancelledError:
+                        pass
+
                 self.conversation_ids[user_id] = genie_result.conversation_id
+                self.last_questions[user_id] = question
+
                 response_activity = genie_result.process_query_results()
-                response_activity.id = (
-                    wait_activity.id
-                )  # Use the same ID to update the waiting message
-                # Attach recommendations to text-only responses (same message = more reliable)
+                response_activity.id = wait_activity.id
+
+                followups = getattr(response_activity, "followup_questions", None)
+                contextual_recs = generate_contextual_recommendations(
+                    question, genie_result.genie_answer or "", followups
+                )
+
                 if not genie_result.statement_response:
                     rec = AdaptiveCardFactory.get_recommendation_activity(
-                        "What else would you like to know?"
+                        "What else would you like to know?",
+                        questions=contextual_recs,
                     )
                     response_activity.suggested_actions = rec.suggested_actions
+
                 await turn_context.update_activity(response_activity)
-                # Recommendations as separate activity for card responses
+
                 if genie_result.statement_response:
                     await turn_context.send_activity(
                         AdaptiveCardFactory.get_recommendation_activity(
-                            "What else would you like to know?"
+                            "What else would you like to know?",
+                            questions=contextual_recs,
                         )
                     )
                 return
 
             except json.JSONDecodeError:
+                suggestions = get_error_recovery_suggestions("json")
                 await turn_context.send_activity(
-                    "Something went wrong on my end. Could you try asking again?"
+                    AdaptiveCardFactory.get_error_recovery_activity(
+                        "Something went wrong on my end. Could you try asking again?",
+                        suggestions,
+                    )
                 )
                 await turn_context.send_activity(
-                    AdaptiveCardFactory.get_recommendation_activity()
+                    AdaptiveCardFactory.get_recommendation_activity(
+                        questions=generate_contextual_recommendations(
+                            self.last_questions.get(user_id, ""),
+                        ),
+                    )
                 )
             except Exception as e:
                 if "This channel does not support this operation" in str(e):
                     try:
                         resp = genie_result.process_query_results()
+                        followups = getattr(resp, "followup_questions", None)
+                        contextual_recs = generate_contextual_recommendations(
+                            question, genie_result.genie_answer or "", followups
+                        )
                         if not genie_result.statement_response:
                             rec = AdaptiveCardFactory.get_recommendation_activity(
-                                "What else would you like to know?"
+                                "What else would you like to know?",
+                                questions=contextual_recs,
                             )
                             resp.suggested_actions = rec.suggested_actions
                         await turn_context.send_activity(resp)
                         if genie_result.statement_response:
                             await turn_context.send_activity(
                                 AdaptiveCardFactory.get_recommendation_activity(
-                                    "What else would you like to know?"
+                                    "What else would you like to know?",
+                                    questions=contextual_recs,
                                 )
                             )
                         return
-                    except (NameError, AttributeError):
+                    except (NameError, AttributeError, UnboundLocalError):
                         pass
                 logger.error(f"Error processing message: {str(e)}")
+                suggestions = get_error_recovery_suggestions("generic")
                 await turn_context.send_activity(
-                    "I ran into an issue. Please try rephrasing your question or ask again in a moment."
+                    AdaptiveCardFactory.get_error_recovery_activity(
+                        "I ran into an issue. Please try rephrasing your question or ask again in a moment.",
+                        suggestions,
+                    )
                 )
                 await turn_context.send_activity(
-                    AdaptiveCardFactory.get_recommendation_activity()
+                    AdaptiveCardFactory.get_recommendation_activity(
+                        questions=generate_contextual_recommendations(
+                            self.last_questions.get(user_id, ""),
+                        ),
+                    )
                 )
                 return
 
@@ -294,10 +340,17 @@ class MyBot(ActivityHandler):
         # Handle recommendation card Action.Submit (Web Chat sends invoke)
         if turn_context.activity.name == "adaptiveCard/action":
             value = getattr(turn_context.activity, "value", None) or {}
-            question = value.get("question") if isinstance(value, dict) else None
-            if question:
-                turn_context.activity.text = question
-                return await self.on_message_activity(turn_context)
+            if isinstance(value, dict):
+                # Handle like/dislike feedback (displayText in messageBack shows acknowledgment)
+                feedback = value.get("feedback")
+                if feedback in ("like", "dislike"):
+                    logger.info(f"User feedback: {feedback}")
+                    return
+                # Handle recommendation question
+                question = value.get("question")
+                if question:
+                    turn_context.activity.text = question
+                    return await self.on_message_activity(turn_context)
         return await super().on_invoke_activity(turn_context)
 
     async def _initialize_genie_querier_with_token(
