@@ -45,6 +45,7 @@ class MyBot(ActivityHandler):
         self.last_questions: dict[str, str] = {}
         self.conversation_state = conversation_state
         self.user_state = user_state
+        self.genie_state_accessor = user_state.create_property("GenieConversationState")
         self.dialog = dialog
         assert auth_method in ["oauth", "service_principal"], (
             "auth_method should be one of ['oauth','service_principal']"
@@ -74,8 +75,18 @@ class MyBot(ActivityHandler):
 
         question = turn_context.activity.text
         user_id = str(turn_context.activity.from_property.id)
-        conversation_id = self.conversation_ids.get(user_id)
-        space_id = self.space_ids.get(user_id) or DEFAULT_SPACE_ID
+
+        # Load persisted state (survives app restarts when using BlobStorage/CosmosDb)
+        genie_state = await self.genie_state_accessor.get(turn_context) or {}
+        conversation_id = (
+            self.conversation_ids.get(user_id)
+            or genie_state.get("conversation_id")
+        )
+        space_id = (
+            self.space_ids.get(user_id)
+            or genie_state.get("space_id")
+            or DEFAULT_SPACE_ID
+        )
 
         # Check if genie has been initialized
         if self.genie_querier.get(user_id) is None:
@@ -129,6 +140,7 @@ class MyBot(ActivityHandler):
             self.space_ids[user_id] = space_id
             # Reset conversation ID for the new space
             self.conversation_ids.pop(user_id, None)
+            await self.genie_state_accessor.set(turn_context, {})
             await turn_context.send_activity(
                 f"Switched to {REVERSE_SPACES[space_id]}. What would you like to explore?"
             )
@@ -147,6 +159,7 @@ class MyBot(ActivityHandler):
                     conversation_id = None
                     self.space_ids[user_id] = new_space_id
                     self.conversation_ids.pop(user_id, None)
+                    await self.genie_state_accessor.set(turn_context, {})
                     await turn_context.send_activity(
                         f"Switched to {REVERSE_SPACES[space_id]}. Ask me anything about the data."
                     )
@@ -160,7 +173,16 @@ class MyBot(ActivityHandler):
                 )
 
                 self.conversation_ids[user_id] = genie_result.conversation_id
+                self.space_ids[user_id] = space_id
                 self.last_questions[user_id] = question
+                # Persist for follow-up messages (survives restarts with BlobStorage)
+                await self.genie_state_accessor.set(
+                    turn_context,
+                    {
+                        "conversation_id": genie_result.conversation_id,
+                        "space_id": space_id,
+                    },
+                )
 
                 response_activity = genie_result.process_query_results()
                 followups = getattr(response_activity, "followup_questions", None)

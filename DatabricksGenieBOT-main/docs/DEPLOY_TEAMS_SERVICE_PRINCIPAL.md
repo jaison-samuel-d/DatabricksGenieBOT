@@ -136,3 +136,28 @@ If you pushed code but the bot still shows old behavior:
    az webapp up --name teams-genie-bot --resource-group Metadata_Framework1 --runtime "PYTHON:3.10"
    ```
    Run from the project root (where `requirements.txt` and `src/` are).
+
+---
+
+## 10. Troubleshooting
+
+### "Error: can't chdir to 'src'"
+
+If the startup command fails with this error, your deployment structure may differ. Try:
+
+1. **Alternative startup command** (when `src/` contents are deployed at app root):
+   ```bash
+   gunicorn --bind 0.0.0.0:8000 --worker-class aiohttp.worker.GunicornWebWorker --timeout 1200 app:app
+   ```
+   Use this only if your deploy puts `src/app.py` and `src/chatx/` at the Web App root.
+
+2. **Verify structure** — Ensure the deployed app has either:
+   - `src/app.py` and `src/chatx/` (use `--chdir src app:app`), or
+   - `app.py` and `chatx/` at root (use `app:app` without `--chdir`).
+
+### Follow-up messages not working
+
+If the first question gets a response but the second does not:
+
+1. **App restarts** — The "can't chdir to 'src'" error can cause restarts; fix the startup command (see above).
+2. **State persistence** — The bot now persists conversation state in UserState. For production with multiple instances or frequent restarts, consider Azure Blob Storage for state (replace `MemoryStorage` with `BlobStorage` in `app.py`).

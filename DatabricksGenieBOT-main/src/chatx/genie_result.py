@@ -37,16 +37,23 @@ def _clean_summary_text(text: str) -> str:
     return text
 
 
+# Heading labels to strip from content (user requested no section headings)
+_HEADING_LABELS = re.compile(
+    r"^(Summary|Analysis|Result table|Visualization|Data table)\s*:?\s*",
+    re.IGNORECASE,
+)
+
+
 def _to_single_paragraph(text: str) -> str:
     """
     Convert Genie text to a single flowing paragraph (no separate headings).
-    Strips markdown headers, replaces 'Analysis' with 'Summary', collapses newlines.
+    Strips markdown headers, heading labels, and collapses newlines.
     """
     if not text or not text.strip():
         return text
     t = text.strip()
-    # Replace "Analysis" heading/label with "Summary"
-    t = re.sub(r"\bAnalysis\b", "Summary", t, flags=re.IGNORECASE)
+    # Strip heading labels (Summary:, Analysis:, Result table:, etc.)
+    t = _HEADING_LABELS.sub("", t)
     # Strip markdown headers (##, ###, ####) - keep the content after them
     t = re.sub(r"^#{1,6}\s*", "", t, flags=re.MULTILINE)
     # Collapse multiple newlines/spaces into single space
